@@ -1,0 +1,72 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{821A95D9-F24F-4779-A18A-129724DAD556}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="json\chimera.json.runtime.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="json\test\chimera.json.test.xplatform.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="pubsub\chimera.pubsub.runtime.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="pubsub\test\xplatform\chimera.pubsub.test.xplatform.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="chimera_json_runtime">
+        <MSBuild Projects="json\chimera.json.runtime.dproj"/>
+    </Target>
+    <Target Name="chimera_json_runtime:Clean">
+        <MSBuild Projects="json\chimera.json.runtime.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="chimera_json_runtime:Make">
+        <MSBuild Projects="json\chimera.json.runtime.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="chimera_json_test_xplatform">
+        <MSBuild Projects="json\test\chimera.json.test.xplatform.dproj"/>
+    </Target>
+    <Target Name="chimera_json_test_xplatform:Clean">
+        <MSBuild Projects="json\test\chimera.json.test.xplatform.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="chimera_json_test_xplatform:Make">
+        <MSBuild Projects="json\test\chimera.json.test.xplatform.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="chimera_pubsub_runtime">
+        <MSBuild Projects="pubsub\chimera.pubsub.runtime.dproj"/>
+    </Target>
+    <Target Name="chimera_pubsub_runtime:Clean">
+        <MSBuild Projects="pubsub\chimera.pubsub.runtime.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="chimera_pubsub_runtime:Make">
+        <MSBuild Projects="pubsub\chimera.pubsub.runtime.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="chimera_pubsub_test_xplatform">
+        <MSBuild Projects="pubsub\test\xplatform\chimera.pubsub.test.xplatform.dproj"/>
+    </Target>
+    <Target Name="chimera_pubsub_test_xplatform:Clean">
+        <MSBuild Projects="pubsub\test\xplatform\chimera.pubsub.test.xplatform.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="chimera_pubsub_test_xplatform:Make">
+        <MSBuild Projects="pubsub\test\xplatform\chimera.pubsub.test.xplatform.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="chimera_json_runtime;chimera_json_test_xplatform;chimera_pubsub_runtime;chimera_pubsub_test_xplatform"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="chimera_json_runtime:Clean;chimera_json_test_xplatform:Clean;chimera_pubsub_runtime:Clean;chimera_pubsub_test_xplatform:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="chimera_json_runtime:Make;chimera_json_test_xplatform:Make;chimera_pubsub_runtime:Make;chimera_pubsub_test_xplatform:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
