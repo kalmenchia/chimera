@@ -367,7 +367,7 @@ begin
   if Name = 'ASJSON' then
   begin
     o := chimera.json.JSON(Variant(Value));
-    o.Each(procedure(n : string; v : variant)
+    o.Each(procedure(const n : string; const v : variant)
     begin
       TJSONvarData(V).VObject.Items[n] := v;
     end);
@@ -375,7 +375,7 @@ begin
   end else if Name = 'ASJSONOBJECT' then
   begin
     o := IInterface(Variant(Value)) as IJSONObject;
-    o.Each(procedure(n : string; v : variant)
+    o.Each(procedure(const n : string; const v : variant)
     begin
       TJSONvarData(V).VObject.Items[n] := v;
     end);
@@ -407,7 +407,7 @@ begin
     o := TJSONArrayVarData(Source).VArray;
     ary := chimera.json.JSONArray;
     TJSONArrayVarData(Dest).VArray := ary;
-    o.Each(procedure(v : variant)
+    o.Each(procedure(const v : variant)
     begin
       ary.Add(v);
     end);
@@ -550,6 +550,7 @@ end;
 function TJSONArrayVariantType.GetProperty(var Dest: TVarData; const V: TVarData;
   const Name: string): Boolean;
 begin
+  Result := False;
   if Name = 'COUNT'  then
   begin
     Variant(Dest) := TJSONArrayvarData(V).VArray.Count;

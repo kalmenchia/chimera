@@ -37,6 +37,8 @@ uses System.SysUtils, System.Classes;
 
 type
 {$SCOPEDENUMS ON}
+  TProcConst<T> = reference to procedure(const Arg1: T);
+  TProcConst<T1,T2> = reference to procedure (const Arg1: T1; const Arg2: T2);
 
   TJSONValueType = (&string, number, &array, &object, boolean, null, code);
 
@@ -129,13 +131,13 @@ type
     procedure AsJSON(var Result : string); overload;
     procedure AsJSON(Result : TStringBuilder); overload;
 
-    procedure Each(proc : TProc<string>); overload;
-    procedure Each(proc : TProc<double>); overload;
-    procedure Each(proc : TProc<int64>); overload;
-    procedure Each(proc : TProc<boolean>); overload;
-    procedure Each(proc : TProc<IJSONObject>); overload;
-    procedure Each(proc : TProc<IJSONArray>); overload;
-    procedure Each(proc : TProc<Variant>); overload;
+    procedure Each(proc : TProcConst<string>); overload;
+    procedure Each(proc : TProcConst<double>); overload;
+    procedure Each(proc : TProcConst<int64>); overload;
+    procedure Each(proc : TProcConst<boolean>); overload;
+    procedure Each(proc : TProcConst<IJSONObject>); overload;
+    procedure Each(proc : TProcConst<IJSONArray>); overload;
+    procedure Each(proc : TProcConst<Variant>); overload;
 
     //function ParentArray : IJSONArray;
     //function ParentObject : IJSONObject;
@@ -177,17 +179,17 @@ type
     //procedure ParentOverride(parent : IJSONArray); overload;
     //procedure ParentOverride(parent : IJSONObject); overload;
 
-    procedure Each(proc : TProc<string, PMultiValue>); overload;
+    procedure Each(proc : TProcConst<string, PMultiValue>); overload;
     procedure Add(const name : string; const value : PMultiValue); overload;
     property Raw[const name : string] : PMultiValue read GetRaw write SetRaw;
 
-    procedure Each(proc : TProc<string, string>); overload;
-    procedure Each(proc : TProc<string, double>); overload;
-    procedure Each(proc : TProc<string, int64>); overload;
-    procedure Each(proc : TProc<string, boolean>); overload;
-    procedure Each(proc : TProc<string, IJSONObject>); overload;
-    procedure Each(proc : TProc<string, IJSONArray>); overload;
-    procedure Each(proc : TProc<string, Variant>); overload;
+    procedure Each(proc : TProcConst<string, string>); overload;
+    procedure Each(proc : TProcConst<string, double>); overload;
+    procedure Each(proc : TProcConst<string, int64>); overload;
+    procedure Each(proc : TProcConst<string, boolean>); overload;
+    procedure Each(proc : TProcConst<string, IJSONObject>); overload;
+    procedure Each(proc : TProcConst<string, IJSONArray>); overload;
+    procedure Each(proc : TProcConst<string, Variant>); overload;
 
     procedure Add(const name : string; const value : string); overload;
     procedure Add(const name : string; const value : double); overload;
@@ -225,7 +227,7 @@ type
   end;
 
 function JSON(const src : string = '') : IJSONObject;
-function JSONArray : IJSONArray;
+function JSONArray(const src : string = '') : IJSONArray;
 function FormatJSON(const src : string; Indent : byte = 3) : string;
 function JSONEncode(const str : string) : string;
 function JSONDecode(const str : string) : string;
@@ -276,13 +278,13 @@ type
     procedure Remove(const value : PMultiValue); overload;
     property Raw[const idx: integer] : PMultiValue read GetRaw write SetRaw;
 
-    procedure Each(proc : TProc<string>); overload;
-    procedure Each(proc : TProc<double>); overload;
-    procedure Each(proc : TProc<int64>); overload;
-    procedure Each(proc : TProc<boolean>); overload;
-    procedure Each(proc : TProc<IJSONObject>); overload;
-    procedure Each(proc : TProc<IJSONArray>); overload;
-    procedure Each(proc : TProc<Variant>); overload;
+    procedure Each(proc : TProcConst<string>); overload;
+    procedure Each(proc : TProcConst<double>); overload;
+    procedure Each(proc : TProcConst<int64>); overload;
+    procedure Each(proc : TProcConst<boolean>); overload;
+    procedure Each(proc : TProcConst<IJSONObject>); overload;
+    procedure Each(proc : TProcConst<IJSONArray>); overload;
+    procedure Each(proc : TProcConst<Variant>); overload;
 
     procedure Add(const value : string); overload;
     procedure Add(const value : double); overload;
@@ -367,17 +369,17 @@ type
     function GetValueOf(const name: string): PMultiValue;
     property ValueOf[const name : string] : PMultiValue read GetValueOf;
   public  // IJSONObject
-    procedure Each(proc : TProc<string, PMultiValue>); overload;
+    procedure Each(proc : TProcConst<string, PMultiValue>); overload;
     procedure Add(const name : string; const value : PMultiValue); overload;
     property Raw[const name : string] : PMultiValue read GetRaw write SetRaw;
 
-    procedure Each(proc : TProc<string, string>); overload;
-    procedure Each(proc : TProc<string, double>); overload;
-    procedure Each(proc : TProc<string, int64>); overload;
-    procedure Each(proc : TProc<string, boolean>); overload;
-    procedure Each(proc : TProc<string, IJSONObject>); overload;
-    procedure Each(proc : TProc<string, IJSONArray>); overload;
-    procedure Each(proc : TProc<string, Variant>); overload;
+    procedure Each(proc : TProcConst<string, string>); overload;
+    procedure Each(proc : TProcConst<string, double>); overload;
+    procedure Each(proc : TProcConst<string, int64>); overload;
+    procedure Each(proc : TProcConst<string, boolean>); overload;
+    procedure Each(proc : TProcConst<string, IJSONObject>); overload;
+    procedure Each(proc : TProcConst<string, IJSONArray>); overload;
+    procedure Each(proc : TProcConst<string, Variant>); overload;
 
     procedure Add(const name : string; const value : string); overload;
     procedure Add(const name : string; const value : double); overload;
@@ -600,13 +602,27 @@ begin
 end;
 
 procedure VerifyType(t1, t2 : TJSONValueType); inline;
+  function JSONValueTypeToString(t : TJSONValueTYpe) : string;
+  begin
+    case t of
+      TJSONValueType.string:  Result := 'String';
+      TJSONValueType.number:  Result := 'Number';
+      TJSONValueType.array:   Result := 'Array';
+      TJSONValueType.object:  Result := 'Object';
+      TJSONValueType.boolean: Result := 'Boolean';
+      TJSONValueType.null:    Result := 'Null';
+      TJSONValueType.code:    Result := 'Code';
+      else
+        Result := '(Unknown)';
+    end;
+  end;
 begin
   if t1 <> t2 then
     if ((t1 = TJSONValueType.null) and
         not (t2 in [TJSONValueType.&string, TJSONValueType.number, TJSONValueType.&object])) or
        ((t2 = TJSONValueType.null) and
         not (t1 in [TJSONValueType.&string, TJSONValueType.number, TJSONValueType.&object])) then
-    raise Exception.Create('Value is not of required type');
+    raise Exception.Create('Value is not of required type: '+JSonValueTypeToString(t1)+' <> '+JSONValueTypeToString(t2));
 end;
 
 function JSON(const src : string) : IJSONObject;
@@ -617,9 +633,12 @@ begin
     Result := TJSONObject.Create;
 end;
 
-function JSONArray : IJSONArray;
+function JSONArray(const src : string) : IJSONArray;
 begin
-  Result := TJSONArray.Create;
+  if src <> '' then
+    Result := TParser.ParseArray(src)
+  else
+    Result := TJSONArray.Create;
 end;
 
 { TJSONArray }
@@ -777,7 +796,7 @@ begin
   inherited;
 end;
 
-procedure TJSONArray.Each(proc: TProc<int64>);
+procedure TJSONArray.Each(proc: TProcConst<int64>);
 var
   i: Integer;
 begin
@@ -785,7 +804,7 @@ begin
     proc(FValues[i].IntegerValue);
 end;
 
-procedure TJSONArray.Each(proc: TProc<double>);
+procedure TJSONArray.Each(proc: TProcConst<double>);
 var
   i: Integer;
 begin
@@ -793,7 +812,7 @@ begin
     proc(FValues[i].NumberValue);
 end;
 
-procedure TJSONArray.Each(proc: TProc<string>);
+procedure TJSONArray.Each(proc: TProcConst<string>);
 var
   i: Integer;
 begin
@@ -801,7 +820,7 @@ begin
     proc(strings[i]);
 end;
 
-procedure TJSONArray.Each(proc: TProc<boolean>);
+procedure TJSONArray.Each(proc: TProcConst<boolean>);
 var
   i: Integer;
 begin
@@ -809,7 +828,7 @@ begin
     proc(FValues[i].IntegerValue <> 0);
 end;
 
-procedure TJSONArray.Each(proc: TProc<Variant>);
+procedure TJSONArray.Each(proc: TProcConst<Variant>);
 var
   i: Integer;
 begin
@@ -817,7 +836,7 @@ begin
     proc(FValues[i].ToVariant);
 end;
 
-procedure TJSONArray.Each(proc: TProc<IJSONArray>);
+procedure TJSONArray.Each(proc: TProcConst<IJSONArray>);
 var
   i: Integer;
 begin
@@ -825,7 +844,7 @@ begin
     proc(FValues[i].ArrayValue);
 end;
 
-procedure TJSONArray.Each(proc: TProc<IJSONObject>);
+procedure TJSONArray.Each(proc: TProcConst<IJSONObject>);
 var
   i: Integer;
 begin
@@ -1494,7 +1513,7 @@ begin
     Dispose(Item);
 end;
 
-procedure TJSONObject.Each(proc: TProc<string, int64>);
+procedure TJSONObject.Each(proc: TProcConst<string, int64>);
 var
   item : TPair<string, PMultiValue>;
 begin
@@ -1502,7 +1521,7 @@ begin
     proc(item.Key, item.Value.IntegerValue);
 end;
 
-procedure TJSONObject.Each(proc: TProc<string, boolean>);
+procedure TJSONObject.Each(proc: TProcConst<string, boolean>);
 var
   item : TPair<string, PMultiValue>;
 begin
@@ -1510,7 +1529,7 @@ begin
     proc(item.Key, item.Value.IntegerValue <> 0);
 end;
 
-procedure TJSONObject.Each(proc: TProc<string, string>);
+procedure TJSONObject.Each(proc: TProcConst<string, string>);
 var
   item : TPair<string, PMultiValue>;
 begin
@@ -1518,7 +1537,7 @@ begin
     proc(item.Key, JSONDecode(item.Value.StringValue));
 end;
 
-procedure TJSONObject.Each(proc: TProc<string, double>);
+procedure TJSONObject.Each(proc: TProcConst<string, double>);
 var
   item : TPair<string, PMultiValue>;
 begin
@@ -1526,7 +1545,7 @@ begin
     proc(item.Key, item.Value.NumberValue);
 end;
 
-procedure TJSONObject.Each(proc: TProc<string, Variant>);
+procedure TJSONObject.Each(proc: TProcConst<string, Variant>);
 var
   item : TPair<string, PMultiValue>;
 begin
@@ -1534,7 +1553,7 @@ begin
     proc(item.Key, item.Value.ToVariant);
 end;
 
-procedure TJSONObject.Each(proc: TProc<string, PMultiValue>);
+procedure TJSONObject.Each(proc: TProcConst<string, PMultiValue>);
 var
   item : TPair<string, PMultiValue>;
 begin
@@ -1573,7 +1592,7 @@ begin
   end;
 end;
 
-procedure TJSONObject.Each(proc: TProc<string, IJSONObject>);
+procedure TJSONObject.Each(proc: TProcConst<string, IJSONObject>);
 var
   item : TPair<string, PMultiValue>;
 begin
@@ -1581,7 +1600,7 @@ begin
     proc(item.Key, item.Value.ObjectValue);
 end;
 
-procedure TJSONObject.Each(proc: TProc<string, IJSONArray>);
+procedure TJSONObject.Each(proc: TProcConst<string, IJSONArray>);
 var
   item : TPair<string, PMultiValue>;
 begin

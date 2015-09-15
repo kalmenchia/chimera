@@ -62,7 +62,7 @@ type
     FTmpValue : TStringBuilder;
     FTmpIdent : TStringBuilder;
     function GetToken : boolean;
-    function ParseArray: IJSONArray;
+    function ParseArray: IJSONArray; overload;
     function ParseObject: IJSONObject;
   protected
     function OperatorToStr(Token : TParseToken) : string;
@@ -70,7 +70,9 @@ type
     constructor Create; virtual;
     destructor Destroy; override;
     function Execute(const AText : string) : IJSONObject;
+    function ExecuteForArray(const AText : string) : IJSONArray;
     class function Parse(const AText : string) : IJSONObject;
+    class function ParseArray(const AText : string) : IJSONArray; overload;
   end;
 
 implementation
@@ -357,6 +359,23 @@ begin
   Result := ParseObject;
 end;
 
+function TParser.ExecuteForArray(const AText : string) : IJSONArray;
+begin
+  if Trim(AText) = '' then
+  begin
+    Result := JSONArray;
+    exit;
+  end;
+
+  FIndex := -1;
+  FText := AText;
+  FTextLength := Length(AText);
+
+  if GetToken then
+    exit;
+  Result := ParseArray;
+end;
+
 class function TParser.Parse(const AText: string): IJSONObject;
 var
   p : TParser;
@@ -364,6 +383,18 @@ begin
   p := TParser.Create;
   try
     Result := p.Execute(AText);
+  finally
+    p.Free;
+  end;
+end;
+
+class function TParser.ParseArray(const AText : string) : IJSONArray;
+var
+  p : TParser;
+begin
+  p := TParser.Create;
+  try
+    Result := p.ExecuteForArray(AText);
   finally
     p.Free;
   end;
