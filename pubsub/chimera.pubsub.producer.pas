@@ -134,7 +134,7 @@ begin
         end;
         Result := jsa.AsJSON;
         Dispatcher.Response.ContentType := 'application/json';
-        jsa.Each(Procedure(jsn: IJSONObject)
+        jsa.Each(Procedure(const jsn: IJSONObject)
           Begin
             FPubSub.ClearMsg(ParseChannel,sSession,jsn);
           End);
