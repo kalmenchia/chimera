@@ -134,6 +134,11 @@ begin
         end;
         Result := jsa.AsJSON;
         Dispatcher.Response.ContentType := 'application/json';
+        jsa.Each(Procedure(jsn: IJSONObject)
+          Begin
+            FPubSub.ClearMsg(ParseChannel,sSession,jsn);
+          End);
+
       end else
         raise EPubSubSecurityException.Create(NOT_ALLOWED);
     end;

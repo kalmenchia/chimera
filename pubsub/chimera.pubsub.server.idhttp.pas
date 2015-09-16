@@ -153,6 +153,10 @@ begin
         raise EPubSubSecurityException.Create(NOT_ALLOWED);
       AResponseInfo.ContentText := jsa.AsJSON;
       AResponseInfo.ContentType := 'application/json';
+      jsa.Each(Procedure(jsn: IJSONObject)
+        Begin
+          FPubSub.ClearMsg(ParseChannel(ARequestInfo),sSession,jsn);
+        End);
     end;
   end;
 end;

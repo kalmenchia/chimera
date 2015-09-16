@@ -103,6 +103,7 @@ type
     procedure BeginContext(const Channel : string; const Context : string); virtual;
     function EndContext(const Channel : string; const Context : string) : TArray<T>; virtual;
     procedure Publish(const Channel : string; const Msg : T; const ID : string = ''); virtual;
+    procedure ClearMsg(const channel: string; const Context: string; Data: T);
 
     property OnCreateChannel : TCreateChannelHandler<T> read FOnCreateChannel write FOnCreateChannel;
     property OnReloadContext : TContextHandler<T> read FOnReloadContext write FOnReloadContext;
@@ -145,6 +146,11 @@ begin
   end;
   FChannels.Free;
   inherited Destroy;
+end;
+
+procedure TPubSub<T>.ClearMsg(const channel: string; const Context: string; Data: T);
+begin
+  DoClearMessage(Lookup(channel),Context, Data);
 end;
 
 procedure TPubSub<T>.DoClearMessage(const channel: IChannel<T>;
@@ -368,7 +374,8 @@ begin
     begin
       h(Msg);
     end;
-    FOwner.DoClearMessage(Self,'',Msg);
+   // if (FContexts.Count > 1) OR ((FContexts.Count = 1) AND (NOT FContexts.ContainsKey(''))) then
+   //   FOwner.DoClearMessage(Self,'',Msg);
     for p in FContexts do
     begin
       p.Value.Enqueue(Msg);
@@ -426,7 +433,7 @@ begin
     while q.Count > 0 do
     begin
       Result[i] := q.Dequeue;
-      FOwner.DoClearMessage(Self, Context, Result[i]);
+     // FOwner.DoClearMessage(Self, Context, Result[i]);
       inc(i);
     end;
   finally
