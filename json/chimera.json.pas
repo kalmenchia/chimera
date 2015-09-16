@@ -232,6 +232,7 @@ function FormatJSON(const src : string; Indent : byte = 3) : string;
 function JSONEncode(const str : string) : string;
 function JSONDecode(const str : string) : string;
 function StringIsJSON(const str : string) : boolean;
+function JSONValueTypeToString(t : TJSONValueTYpe) : string;
 
 implementation
 
@@ -422,6 +423,21 @@ type
     destructor Destroy; override;
   end;
 
+function JSONValueTypeToString(t : TJSONValueTYpe) : string;
+  begin
+    case t of
+      TJSONValueType.string:  Result := 'String';
+      TJSONValueType.number:  Result := 'Number';
+      TJSONValueType.array:   Result := 'Array';
+      TJSONValueType.object:  Result := 'Object';
+      TJSONValueType.boolean: Result := 'Boolean';
+      TJSONValueType.null:    Result := 'Null';
+      TJSONValueType.code:    Result := 'Code';
+      else
+        Result := '(Unknown)';
+    end;
+end;
+
 function StringIsJSON(const str : string) : boolean;
 begin
   result := (str <> '') and (str[1] = '{') and (str[length(str)] = '}')
@@ -602,20 +618,6 @@ begin
 end;
 
 procedure VerifyType(t1, t2 : TJSONValueType); inline;
-  function JSONValueTypeToString(t : TJSONValueTYpe) : string;
-  begin
-    case t of
-      TJSONValueType.string:  Result := 'String';
-      TJSONValueType.number:  Result := 'Number';
-      TJSONValueType.array:   Result := 'Array';
-      TJSONValueType.object:  Result := 'Object';
-      TJSONValueType.boolean: Result := 'Boolean';
-      TJSONValueType.null:    Result := 'Null';
-      TJSONValueType.code:    Result := 'Code';
-      else
-        Result := '(Unknown)';
-    end;
-  end;
 begin
   if t1 <> t2 then
     if ((t1 = TJSONValueType.null) and
