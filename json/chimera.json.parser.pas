@@ -145,18 +145,18 @@ begin
       break;
     end else if (FText.Chars[FIndex] <= Char($20)) then
       continue
-    else if (TCharacter.IsLetterOrDigit(FText.Chars[FIndex])) then
+    else if (TCharacter.IsLetterOrDigit(FText.Chars[FIndex])) or (FText.Chars[FIndex]='-') then
     begin
       // Is an identifier or value
       iStart := FIndex;
       iLen := 0;
       while (FIndex < FTextLength) do
       begin
-        if ( not (FText.Chars[FIndex] in ['0'..'9', 'A'..'Z','a'..'z','.'])) then //.isLetterOrDigit(FText[FIndex])) and (FText[FIndex] <> FFmt.DecimalSeparator)) then
+        if ( not (FText.Chars[FIndex] in ['0'..'9', 'A'..'Z','a'..'z','.', '-'])) then //.isLetterOrDigit(FText[FIndex])) and (FText[FIndex] <> FFmt.DecimalSeparator)) then
           break;
         if (FIndex > iStart) then
         begin
-          if ( not (FText.Chars[FIndex-1] in ['0'..'9', 'A'..'Z','a'..'z','.'])) then //.isLetterOrDigit(FText[FIndex])) and (FText[FIndex] <> FFmt.DecimalSeparator)) then
+          if ( not (FText.Chars[FIndex-1] in ['0'..'9', 'A'..'Z','a'..'z','.', '-'])) then //.isLetterOrDigit(FText[FIndex])) and (FText[FIndex] <> FFmt.DecimalSeparator)) then
         //if (FIndex > iStart) and (( not TCharacter.isLetterOrDigit(FText[FIndex-1])) and (FText[FIndex-1] <> FFmt.DecimalSeparator)) then
             break;
           inc(iLen,2);
@@ -169,7 +169,7 @@ begin
         end;
         inc(FIndex,2); // marginally faster to skip by twos, moreso on big tokens
       end;
-      if (FIndex > iStart) and ( not (FText.Chars[FIndex-1] in ['0'..'9', 'A'..'Z','a'..'z','.'])) then //.isLetterOrDigit(FText[FIndex])) and (FText[FIndex] <> FFmt.DecimalSeparator)) then
+      if (FIndex > iStart) and ( not (FText.Chars[FIndex-1] in ['0'..'9', 'A'..'Z','a'..'z','.', '-'])) then //.isLetterOrDigit(FText[FIndex])) and (FText[FIndex] <> FFmt.DecimalSeparator)) then
       //if (FIndex > iStart) and ( not TCharacter.isLetterOrDigit(FText[FIndex-1])) and (FText[FIndex-1] <> FFmt.DecimalSeparator) then
         dec(FIndex)
       else
