@@ -232,6 +232,7 @@ function FormatJSON(const src : string; Indent : byte = 3) : string;
 function JSONEncode(const str : string) : string;
 function JSONDecode(const str : string) : string;
 function StringIsJSON(const str : string) : boolean;
+function JSONValueTypeToString(t : TJSONValueTYpe) : string;
 
 implementation
 
@@ -436,6 +437,21 @@ type
     constructor Create; overload; virtual;
     destructor Destroy; override;
   end;
+
+function JSONValueTypeToString(t : TJSONValueTYpe) : string;
+  begin
+    case t of
+      TJSONValueType.string:  Result := 'String';
+      TJSONValueType.number:  Result := 'Number';
+      TJSONValueType.array:   Result := 'Array';
+      TJSONValueType.object:  Result := 'Object';
+      TJSONValueType.boolean: Result := 'Boolean';
+      TJSONValueType.null:    Result := 'Null';
+      TJSONValueType.code:    Result := 'Code';
+      else
+        Result := '(Unknown)';
+    end;
+end;
 
 function StringIsJSON(const str : string) : boolean;
 begin
