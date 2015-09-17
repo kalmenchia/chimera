@@ -184,9 +184,6 @@ end;
 
 procedure TJSONVariantType.Copy(var Dest: TVarData; const Source: TVarData;
   const Indirect: Boolean);
-var
-  s: String;
-  o: IJSONObject;
 begin
   if not (Indirect and VarDataIsByRef(Source)) then
   begin
@@ -215,10 +212,8 @@ var
   PIdent: PByte;
   BIdent: TBytes;
   LCasedIdent : string;
-  LTemp: TVarData;
   VarParams : TVarDataArray;
   Strings: TStringRefList;
-  LDest: PVarData;
   v : variant;
 begin
   // Grab the identifier
@@ -342,7 +337,6 @@ end;
 function TJSONVariantType.GetProperty(var Dest: TVarData; const V: TVarData;
   const Name: string): Boolean;
 begin
-  Result := False;
   if Name = 'ASJSON' then
   begin
     Variant(Dest) := TJSONvarData(V).VObject.AsJSON;
@@ -363,7 +357,6 @@ function TJSONVariantType.SetProperty(const V: TVarData; const Name: string;
 var
   o : IJSONObject;
 begin
-  Result := False;
   if Name = 'ASJSON' then
   begin
     o := chimera.json.JSON(Variant(Value));
@@ -398,7 +391,6 @@ end;
 procedure TJSONArrayVariantType.Copy(var Dest: TVarData; const Source: TVarData;
   const Indirect: Boolean);
 var
-  s: String;
   ary, o: IJSONArray;
 begin
   if not (Indirect and VarDataIsByRef(Source)) then
@@ -432,7 +424,6 @@ var
   I, LArgCount: Integer;
   LIdent: string;
   LCasedIdent : string;
-  LTemp: TVarData;
   PIdent: PByte;
   BIdent: TBytes;
   VarParams : TVarDataArray;

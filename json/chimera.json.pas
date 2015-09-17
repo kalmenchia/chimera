@@ -238,6 +238,21 @@ implementation
 uses System.Variants, System.Generics.Collections, chimera.json.parser,
   System.StrUtils;
 
+function JSONValueTypeToString(t : TJSONValueTYpe) : string;
+begin
+  case t of
+    TJSONValueType.string:  Result := 'String';
+    TJSONValueType.number:  Result := 'Number';
+    TJSONValueType.array:   Result := 'Array';
+    TJSONValueType.object:  Result := 'Object';
+    TJSONValueType.boolean: Result := 'Boolean';
+    TJSONValueType.null:    Result := 'Null';
+    TJSONValueType.code:    Result := 'Code';
+    else
+      Result := '(Unknown)';
+  end;
+end;
+
 type
   TJSONArray = class(TInterfacedObject, IJSONArray)
   private // IJSONArray
@@ -316,7 +331,7 @@ type
     function IndexOf(const value : IJSONArray) : integer; overload;
     function IndexOf(const value : IJSONObject) : integer; overload;
 
-    function Equals(const obj : IJSONArray) : boolean;
+    function Equals(const obj : IJSONArray) : boolean; reintroduce;
 
     property Strings[const idx : integer] : string read GetString write SetString;
     property Numbers[const idx : integer] : Double read GetNumber write SetNumber;
@@ -402,7 +417,7 @@ type
     //function ParentArray : IJSONArray;
     //function ParentObject : IJSONObject;
 
-    function Equals(const obj : IJSONObject) : boolean;
+    function Equals(const obj : IJSONObject) : boolean; reintroduce;
 
     property Strings[const name : string] : string read GetString write SetString;
     property Numbers[const name : string] : Double read GetNumber write SetNumber;
@@ -602,20 +617,6 @@ begin
 end;
 
 procedure VerifyType(t1, t2 : TJSONValueType); inline;
-  function JSONValueTypeToString(t : TJSONValueTYpe) : string;
-  begin
-    case t of
-      TJSONValueType.string:  Result := 'String';
-      TJSONValueType.number:  Result := 'Number';
-      TJSONValueType.array:   Result := 'Array';
-      TJSONValueType.object:  Result := 'Object';
-      TJSONValueType.boolean: Result := 'Boolean';
-      TJSONValueType.null:    Result := 'Null';
-      TJSONValueType.code:    Result := 'Code';
-      else
-        Result := '(Unknown)';
-    end;
-  end;
 begin
   if t1 <> t2 then
     if ((t1 = TJSONValueType.null) and
@@ -1140,7 +1141,6 @@ var
 begin
   for i := FValues.Count-1 downto 0 do
   begin
-    bRemove := False;
     if VarIsType(Value,varUnknown) then
     begin
       if Supports(Value, IJSONObject, jso) then
@@ -1494,14 +1494,7 @@ begin
 end;
 
 destructor TJSONObject.Destroy;
-var
-  item : TPair<string,PMultiValue>;
 begin
-  {for item in FValues do
-  begin
-    Dispose(item.value);
-  end;}
-
   FValues.Free;
   inherited;
 end;
@@ -1765,7 +1758,6 @@ end;
 
 procedure TJSONObject.SaveToStream(Stream: TStream);
 var
-  LBytes: TBytes;
   sb : TStringBuilder;
 begin
   sb := TStringBuilder.Create;
@@ -1919,8 +1911,6 @@ begin
 end;
 
 procedure TMultiValue.AsJSON(var result : string);
-var
-  s : string;
 begin
   case Self.ValueType of
     TJSONValueType.code:
