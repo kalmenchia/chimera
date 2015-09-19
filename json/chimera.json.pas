@@ -438,21 +438,6 @@ type
     destructor Destroy; override;
   end;
 
-function JSONValueTypeToString(t : TJSONValueTYpe) : string;
-  begin
-    case t of
-      TJSONValueType.string:  Result := 'String';
-      TJSONValueType.number:  Result := 'Number';
-      TJSONValueType.array:   Result := 'Array';
-      TJSONValueType.object:  Result := 'Object';
-      TJSONValueType.boolean: Result := 'Boolean';
-      TJSONValueType.null:    Result := 'Null';
-      TJSONValueType.code:    Result := 'Code';
-      else
-        Result := '(Unknown)';
-    end;
-end;
-
 function StringIsJSON(const str : string) : boolean;
 begin
   result := (str <> '') and (str[1] = '{') and (str[length(str)] = '}')
