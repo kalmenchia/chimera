@@ -1,0 +1,88 @@
+object Form3: TForm3
+  Left = 0
+  Top = 0
+  Caption = 'Chimera Storage Test '
+  ClientHeight = 480
+  ClientWidth = 640
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  DesignerMasterStyle = 0
+  object txtKey: TEdit
+    Touch.InteractiveGestures = [LongTap, DoubleTap]
+    Anchors = [akLeft, akTop, akRight]
+    TabOrder = 0
+    Text = 'test_key'
+    Position.X = 24.000000000000000000
+    Position.Y = 32.000000000000000000
+    Size.Width = 249.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    object lblKey: TLabel
+      Position.Y = -19.000000000000000000
+      Text = 'Key:'
+    end
+  end
+  object txtValue: TMemo
+    Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+    DataDetectorTypes = []
+    Lines.Strings = (
+      '{'#9
+      #9'"SomeName" : "SomeValue",'
+      #9'"SomeID" : 123'
+      '}')
+    StyledSettings = [Size, Style, FontColor]
+    TextSettings.Font.Family = 'Courier New'
+    Anchors = [akLeft, akTop, akRight, akBottom]
+    Position.X = 24.000000000000000000
+    Position.Y = 88.000000000000000000
+    Size.Width = 593.000000000000000000
+    Size.Height = 361.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 4
+    Viewport.Width = 589.000000000000000000
+    Viewport.Height = 357.000000000000000000
+  end
+  object btnStore: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 446.000000000000000000
+    Position.Y = 32.000000000000000000
+    TabOrder = 2
+    Text = 'Store'
+    OnClick = btnStoreClick
+  end
+  object btnLookup: TButton
+    Anchors = [akTop, akRight]
+    Position.X = 536.000000000000000000
+    Position.Y = 32.000000000000000000
+    TabOrder = 3
+    Text = 'Lookup'
+    OnClick = btnLookupClick
+  end
+  object lblValue: TLabel
+    Position.X = 24.000000000000000000
+    Position.Y = 64.000000000000000000
+    Text = 'Value:'
+  end
+  object cbEngines: TComboBox
+    Anchors = [akTop, akRight]
+    Items.Strings = (
+      'MEMORY_STORAGE'
+      'LOCAL_STORAGE')
+    ItemIndex = 0
+    Position.X = 280.000000000000000000
+    Position.Y = 32.000000000000000000
+    Size.Width = 153.000000000000000000
+    Size.Height = 22.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+  end
+  object cbAsync: TCheckBox
+    Position.X = 448.000000000000000000
+    Position.Y = 8.000000000000000000
+    TabOrder = 6
+    Text = 'Asyncronous'
+  end
+end
