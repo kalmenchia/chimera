@@ -32,4 +32,9 @@ package chimera.pubsub.runtime;
 requires
   rtl;
 
+contains
+  chimera.pubsub.common in 'chimera.pubsub.common.pas',
+  chimera.pubsub.interfaces in 'chimera.pubsub.interfaces.pas',
+  chimera.pubsub in 'chimera.pubsub.pas';
+
 end.
