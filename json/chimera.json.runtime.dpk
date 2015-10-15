@@ -35,6 +35,7 @@ requires
 contains
   chimera.json.parser in 'chimera.json.parser.pas',
   chimera.json in 'chimera.json.pas',
-  chimera.json.variants in 'chimera.json.variants.pas';
+  chimera.json.variants in 'chimera.json.variants.pas',
+  chimera.json.helpers in 'chimera.json.helpers.pas';
 
 end.

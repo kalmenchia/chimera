@@ -5,11 +5,12 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs,
-  FMX.Controls.Presentation, FMX.ScrollBox, FMX.Memo;
+  FMX.Controls.Presentation, FMX.ScrollBox, FMX.Memo, FMX.Layouts;
 
 type
   TForm1 = class(TForm)
     txtMsg: TMemo;
+    Layout1: TLayout;
     procedure FormShow(Sender: TObject);
   private
     { Private declarations }
@@ -24,7 +25,7 @@ implementation
 
 uses
   System.DateUtils,
-  chimera.json;
+  chimera.json, chimera.json.helpers;
 
 
 {$R *.fmx}
@@ -44,6 +45,11 @@ begin
     sl := TStringList.Create;
     sb := TStringBuilder.Create;
     try
+      sl.Text := txtMsg.AsJSON;
+      sl.SaveToFile('..'+PathDelim+'..'+PathDelim+'Memo.json');
+      WriteLn(sl.Text);
+      sl.Clear;
+
       if FileExists(ExtractFilePath(ParamStr(0))+PathDelim+'test.json') then
         sl.LoadFromFile(ExtractFilePath(ParamStr(0))+PathDelim+'test.json')
       else
@@ -79,6 +85,10 @@ begin
         aryTimes[9]) / 10));
       sl.Text := jso.AsJSON;
       sl.SaveToFile('..\..\test.out.json');
+      sl.LoadFromFile('..\..\Memo.json');
+      jso := JSON(sl.Text);
+      jso.Booleans['ReadOnly'] := True;
+      txtMsg.AsJSONObject := jso;
       //ReadLn;
     finally
       sl.Free;
