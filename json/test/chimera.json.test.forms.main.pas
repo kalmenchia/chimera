@@ -5,13 +5,15 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs,
-  FMX.Controls.Presentation, FMX.ScrollBox, FMX.Memo, FMX.Layouts;
+  FMX.Controls.Presentation, FMX.ScrollBox, FMX.Memo, FMX.Layouts, FMX.StdCtrls;
 
 type
   TForm1 = class(TForm)
     txtMsg: TMemo;
     Layout1: TLayout;
+    btnChangeFont: TButton;
     procedure FormShow(Sender: TObject);
+    procedure btnChangeFontClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -29,6 +31,19 @@ uses
 
 
 {$R *.fmx}
+
+procedure TForm1.btnChangeFontClick(Sender: TObject);
+var
+  jso : IJSONObject;
+begin
+  showmessage(txtMsg.TextSettings.Font.Size.ToString);
+  jso := JSON();
+  jso.Objects['TextSettings'] := JSON();
+  jso.Objects['TextSettings'].Objects['Font'] := JSON();
+  jso.Objects['TextSettings'].Objects['Font'].Numbers['Size'] := 34;
+  txtMsg.AsJSONObject := jso;
+  showmessage(txtMsg.TextSettings.Font.Size.ToString);
+end;
 
 procedure TForm1.FormShow(Sender: TObject);
 

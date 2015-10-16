@@ -18,15 +18,23 @@ object Form1: TForm1
     object txtMsg: TMemo
       Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
       DataDetectorTypes = []
+      StyledSettings = [Family, Style, FontColor]
       Anchors = [akLeft, akTop, akRight, akBottom]
       Position.X = 8.000000000000000000
       Position.Y = 8.000000000000000000
       Size.Width = 625.000000000000000000
-      Size.Height = 465.000000000000000000
+      Size.Height = 425.000000000000000000
       Size.PlatformDefault = False
       TabOrder = 0
       Viewport.Width = 621.000000000000000000
-      Viewport.Height = 461.000000000000000000
+      Viewport.Height = 421.000000000000000000
+    end
+    object btnChangeFont: TButton
+      Position.X = 8.000000000000000000
+      Position.Y = 440.000000000000000000
+      TabOrder = 1
+      Text = 'Change Font'
+      OnClick = btnChangeFontClick
     end
   end
 end
