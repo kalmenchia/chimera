@@ -41,6 +41,9 @@ begin
   jso.Objects['TextSettings'] := JSON();
   jso.Objects['TextSettings'].Objects['Font'] := JSON();
   jso.Objects['TextSettings'].Objects['Font'].Numbers['Size'] := 34;
+  jso.SaveToFile(ExtractFilePath(Paramstr(0))+'delta.json');
+  jso := JSON();
+  jso.LoadFromFile(ExtractFilePath(Paramstr(0))+'delta.json');
   txtMsg.AsJSONObject := jso;
   showmessage(txtMsg.TextSettings.Font.Size.ToString);
 end;
