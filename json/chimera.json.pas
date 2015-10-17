@@ -1775,11 +1775,13 @@ end;
 procedure TJSONObject.SaveToStream(Stream: TStream);
 var
   sb : TStringBuilder;
+  bytes : TArray<Byte>;
 begin
   sb := TStringBuilder.Create;
   try
     AsJSON(sb);
-    Stream.Write(Pointer(sb.ToString)^,sb.Length*SizeOf(Char));
+    bytes := TEncoding.UTF8.GetBytes(sb.ToString);
+    Stream.Write(bytes,length(bytes));
   finally
     sb.Free;
   end;
