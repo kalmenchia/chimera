@@ -5,7 +5,7 @@ interface
 uses System.Classes, chimera.json, System.Rtti;
 
 type
-  TPersistentHelper = class helper for TPersistent
+  TObjectHelper = class helper for TObject
   private
     function RTTITypeToJSONType(kind : TTypeKind) : TJSONValueType;
     function GetAsJSONObject : IJSONObject;
@@ -28,7 +28,7 @@ uses System.TypInfo;
 
 { TPersistentHelper }
 
-procedure TPersistentHelper.ApplyJSONArray(jsa: IJSONArray; val: TValue);
+procedure TObjectHelper.ApplyJSONArray(jsa: IJSONArray; val: TValue);
 var
   i : integer;
   iLen : Integer;
@@ -67,7 +67,7 @@ begin
   end;
 end;
 
-procedure TPersistentHelper.ApplyJSONObject(jso: IJSONObject; obj: TObject);
+procedure TObjectHelper.ApplyJSONObject(jso: IJSONObject; obj: TObject);
 var
   cxt : TRTTIContext;
 begin
@@ -111,7 +111,7 @@ begin
   );
 end;
 
-function TPersistentHelper.GenerateJSONArray(ary : TValue) : IJSONArray;
+function TObjectHelper.GenerateJSONArray(ary : TValue) : IJSONArray;
 var
   iLen : Integer;
   i : integer;
@@ -158,7 +158,7 @@ begin
   end;
 end;
 
-function TPersistentHelper.GenerateJSONObject(obj : TObject) : IJSONObject;
+function TObjectHelper.GenerateJSONObject(obj : TObject) : IJSONObject;
 var
   cxt : TRTTIContext;
   ary : TArray<TRttiProperty>;
@@ -204,17 +204,25 @@ begin
   end;
 end;
 
-function TPersistentHelper.GetAsJSON: string;
+function TObjectHelper.GetAsJSON: string;
 begin
   Result := GetAsJSONObject.AsJSON;
 end;
 
-function TPersistentHelper.GetAsJSONObject: IJSONObject;
+function TObjectHelper.GetAsJSONObject: IJSONObject;
+var
+  jso : IJSONObject;
 begin
-  Result := GenerateJSONObject(Self);
+  jso := GenerateJSONObject(Self);
+  jso.OnChange :=
+    procedure(const obj : IJSONObject)
+    begin
+      AsJSONObject := jso;
+    end;
+  Result := jso;
 end;
 
-function TPersistentHelper.RTTITypeToJSONType(kind: TTypeKind): TJSONValueType;
+function TObjectHelper.RTTITypeToJSONType(kind: TTypeKind): TJSONValueType;
 begin
   case kind of
     tkUnknown,
@@ -259,12 +267,12 @@ begin
   end;
 end;
 
-procedure TPersistentHelper.SetAsJSON(const Value: string);
+procedure TObjectHelper.SetAsJSON(const Value: string);
 begin
   SetAsJSONObject(JSON(Value));
 end;
 
-procedure TPersistentHelper.SetAsJSONObject(const Obj: IJSONObject);
+procedure TObjectHelper.SetAsJSONObject(const Obj: IJSONObject);
 begin
   ApplyJSONObject(obj, self);
 end;
