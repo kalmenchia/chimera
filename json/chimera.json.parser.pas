@@ -62,14 +62,17 @@ type
     function GetToken : boolean;
     function ParseArray: IJSONArray; overload;
     function ParseObject: IJSONObject;
+    procedure ParseObjectTo(const Obj : IJSONObject);
   protected
     function OperatorToStr(Token : TParseToken) : string;
   public
     constructor Create; virtual;
     destructor Destroy; override;
+    procedure ExecuteTo(const AText : string; const Obj : IJSONObject);
     function Execute(const AText : string) : IJSONObject;
     function ExecuteForArray(const AText : string) : IJSONArray;
     class function Parse(const AText : string) : IJSONObject;
+    class procedure ParseTo(const AText : string; const Obj : IJSONObject);
     class function ParseArray(const AText : string) : IJSONArray; overload;
   end;
 
@@ -278,12 +281,17 @@ begin
 end;
 
 function TParser.ParseObject : IJSONObject;
+begin
+  Result := JSON;
+  ParseObjectTo(Result);
+end;
+
+procedure TParser.ParseObjectTo(const Obj: IJSONObject);
 var
   sName : String;
 begin
   if FToken <> TParseToken.OpenObject  then
     raise Exception.Create('Object Expected');
-  Result := JSON;
   GetToken;
   while FToken <> TParseToken.CloseObject do
   begin
@@ -296,25 +304,25 @@ begin
     GetToken;
     case FToken of
       TParser.TParseToken.String:
-        Result.Raw[sName] := @FTokenValue;
+        Obj.Raw[sName] := @FTokenValue;
       TParser.TParseToken.OpenObject:
-        Result.Objects[sName] := ParseObject;
+        Obj.Objects[sName] := ParseObject;
       TParser.TParseToken.OpenArray:
-        Result.Arrays[sName] := ParseArray;
+        Obj.Arrays[sName] := ParseArray;
       TParser.TParseToken.Value:
         case FTokenValue.ValueType of
           TJSONValueType.string:
-            Result.Strings[sName] := FTokenValue.StringValue;
+            Obj.Strings[sName] := FTokenValue.StringValue;
           TJSONValueType.number:
-            Result.Numbers[sName] := FTokenValue.NumberValue;
+            Obj.Numbers[sName] := FTokenValue.NumberValue;
           TJSONValueType.array:
-            Result.Arrays[sName] := FTokenValue.ArrayValue;
+            Obj.Arrays[sName] := FTokenValue.ArrayValue;
           TJSONValueType.object:
-            Result.Objects[sName] := FTokenValue.ObjectValue;
+            Obj.Objects[sName] := FTokenValue.ObjectValue;
           TJSONValueType.boolean:
-            Result.Booleans[sName] := FTokenValue.IntegerValue <> 0;
+            Obj.Booleans[sName] := FTokenValue.IntegerValue <> 0;
           TJSONValueType.null:
-            Result.AddNull(sName);
+            Obj.AddNull(sName);
         end;
       TParser.TParseToken.CloseObject,
       TParser.TParseToken.CloseArray,
@@ -333,6 +341,20 @@ begin
     if FToken = TParseToken.Comma then
       GetToken;
   end;
+end;
+
+class procedure TParser.ParseTo(const AText: string;
+  const Obj: IJSONObject);
+var
+  p : TParser;
+begin
+  p := TParser.Create;
+  try
+    p.ExecuteTo(AText, Obj);
+  finally
+    p.Free;
+  end;
+
 end;
 
 function TParser.Execute(const AText: string): IJSONObject;
@@ -367,6 +389,23 @@ begin
   if GetToken then
     exit;
   Result := ParseArray;
+end;
+
+procedure TParser.ExecuteTo(const AText: string; const Obj: IJSONObject);
+begin
+  if Trim(AText) = '' then
+  begin
+    Obj.Clear;
+    exit;
+  end;
+
+  FIndex := -1;
+  FText := AText;
+  FTextLength := Length(AText);
+
+  if GetToken then
+    exit;
+  ParseObjectTo(Obj);
 end;
 
 class function TParser.Parse(const AText: string): IJSONObject;

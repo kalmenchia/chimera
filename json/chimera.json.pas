@@ -204,10 +204,12 @@ type
     function AsJSON : string; overload;
     procedure AsJSON(var Result : string); overload;
     procedure AsJSON(Result : TStringBuilder); overload;
+    procedure Reload(const Source : string);
+    procedure Clear;
 
     function Equals(const obj : IJSONObject) : boolean;
-    function LoadFromStream(Stream : TStream) : IJSONObject;
-    function LoadFromFile(Filename : string) : IJSONObject;
+    procedure LoadFromStream(Stream : TStream);
+    procedure LoadFromFile(Filename : string);
     procedure SaveToStream(Stream : TStream);
     procedure SaveToFile(Filename : string);
     //function ParentArray : IJSONArray;
@@ -388,6 +390,8 @@ type
     procedure Each(proc : TProcConst<string, PMultiValue>); overload;
     procedure Add(const name : string; const value : PMultiValue); overload;
     property Raw[const name : string] : PMultiValue read GetRaw write SetRaw;
+    procedure Reload(const Source : string);
+    procedure Clear;
 
     procedure Each(proc : TProcConst<string, string>); overload;
     procedure Each(proc : TProcConst<string, double>); overload;
@@ -410,8 +414,8 @@ type
     procedure AsJSON(var Result : string); overload;
     procedure AsJSON(Result : TStringBuilder); overload;
     procedure Remove(const name: string);
-    function LoadFromStream(Stream : TStream) : IJSONObject;
-    function LoadFromFile(Filename : string) : IJSONObject;
+    procedure LoadFromStream(Stream : TStream);
+    procedure LoadFromFile(Filename : string);
     procedure SaveToStream(Stream : TStream);
     procedure SaveToFile(Filename : string);
 
@@ -1487,6 +1491,11 @@ begin
   FParentArray := Parent;
 end;}
 
+procedure TJSONObject.Clear;
+begin
+  FValues.Clear;
+end;
+
 constructor TJSONObject.Create;
 begin
   inherited Create;
@@ -1679,26 +1688,26 @@ begin
 
 end;
 
-function TJSONObject.LoadFromFile(Filename: string): IJSONObject;
+procedure TJSONObject.LoadFromFile(Filename: string);
 var
   fs : TFileStream;
 begin
   fs := TFileStream.Create(Filename, fmOpenRead);
   try
-    Result := LoadFromStream(fs);
+    LoadFromStream(fs);
   finally
     fs.Free;
   end;
 end;
 
-function TJSONObject.LoadFromStream(Stream: TStream): IJSONObject;
+procedure TJSONObject.LoadFromStream(Stream: TStream);
 var
   ss : TStringStream;
 begin
   ss := TStringStream.Create;
   try
     ss.CopyFrom(Stream, Stream.Size-Stream.Position);
-    Result := JSON(ss.DataString);
+    Reload(ss.DataString);
   finally
     ss.Free;
   end;
@@ -1725,6 +1734,12 @@ begin
   FParentObject := parent;
   FParentArray := nil;
 end;}
+
+procedure TJSONObject.Reload(const Source: string);
+begin
+  Clear;
+  TParser.ParseTo(Source, Self)
+end;
 
 procedure TJSONObject.Remove(const name: string);
 begin
