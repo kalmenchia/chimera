@@ -163,6 +163,7 @@ var
   cxt : TRTTIContext;
   ary : TArray<TRttiProperty>;
   prop : TRttiProperty;
+  jsoResult: IJSONObject;
 begin
   cxt := TRTTIContext.Create;
   Result := JSON();
@@ -193,10 +194,26 @@ begin
               Result.Numbers[prop.Name] := prop.GetValue(obj).AsExtended;
           end;
         TJSONValueType.Object:
-          Result.Objects[prop.Name] := GenerateJSONObject(prop.GetValue(obj).AsObject);
+          begin
+            jsoResult := Result;
+            jsoResult.Objects[prop.Name] := GenerateJSONObject(prop.GetValue(obj).AsObject);
+            jsoResult.Objects[prop.Name].OnChange :=
+              procedure(const jso : IJSONObject)
+              begin
+                jsoResult.DoChangeNotify;
+              end;
+          end;
 
         TJSONValueType.Array:
-          Result.Arrays[prop.Name] := GenerateJSONArray(prop.GetValue(obj));
+          begin
+            jsoResult := Result;
+            jsoResult.Arrays[prop.Name] := GenerateJSONArray(prop.GetValue(obj));
+            jsoResult.Arrays[prop.Name].OnChange :=
+              procedure(const jsa : IJSONArray)
+              begin
+                jsoResult.DoChangeNotify;
+              end;
+          end;
         else
           Continue;
       end;

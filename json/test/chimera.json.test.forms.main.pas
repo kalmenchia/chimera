@@ -46,6 +46,9 @@ begin
   jso.LoadFromFile(ExtractFilePath(Paramstr(0))+'delta.json');
   txtMsg.AsJSONObject := jso;
   showmessage(txtMsg.TextSettings.Font.Size.ToString);
+
+  txtMsg.AsJSONObject.Objects['TextSettings'].Objects['Font'].Numbers['Size'] := 22;
+  showmessage(txtMsg.TextSettings.Font.Size.ToString);
 end;
 
 procedure TForm1.FormShow(Sender: TObject);

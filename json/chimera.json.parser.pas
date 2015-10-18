@@ -306,9 +306,23 @@ begin
       TParser.TParseToken.String:
         Obj.Raw[sName] := @FTokenValue;
       TParser.TParseToken.OpenObject:
-        Obj.Objects[sName] := ParseObject;
+        begin
+          Obj.Objects[sName] := ParseObject;
+          Obj.Objects[sName].OnChange :=
+            procedure(const jso : IJSONObject)
+            begin
+              Obj.DoChangeNotify;
+            end;
+        end;
       TParser.TParseToken.OpenArray:
-        Obj.Arrays[sName] := ParseArray;
+        begin
+          Obj.Arrays[sName] := ParseArray;
+          Obj.Arrays[sName].OnChange :=
+            procedure(const jsa : IJSONArray)
+            begin
+              Obj.DoChangeNotify;
+            end;
+        end;
       TParser.TParseToken.Value:
         case FTokenValue.ValueType of
           TJSONValueType.string:

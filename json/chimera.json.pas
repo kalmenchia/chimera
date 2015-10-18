@@ -45,6 +45,9 @@ type
   IJSONObject = interface;
   IJSONArray = interface;
 
+  TChangeObjectHandler = reference to procedure(const obj : IJSONObject);
+  TChangeArrayHandler = reference to procedure(const ary : IJSONArray);
+
   PMultiValue = ^TMultiValue;
   TMultiValue = record
     ValueType : TJSONValueType;
@@ -71,6 +74,8 @@ type
 
   IJSONArray = interface(IInterface)
     ['{2D496737-5D01-4332-B2C2-7328772E3587}']
+    function GetOnChange: TChangeArrayHandler;
+    procedure SetOnChange(const Value: TChangeArrayHandler);
     function GetRaw(const idx: integer): PMultiValue;
     procedure SetRaw(const idx: integer; const Value: PMultiValue);
     function GetBoolean(const idx: integer): Boolean;
@@ -125,6 +130,11 @@ type
     function IndexOf(const value : IJSONArray) : integer; overload;
     function IndexOf(const value : IJSONObject) : integer; overload;
 
+    property OnChange : TChangeArrayHandler read GetOnChange write SetOnChange;
+    procedure BeginUpdates;
+    procedure EndUpdates;
+    procedure DoChangeNotify;
+
     function Equals(const obj : IJSONArray) : boolean;
 
     function AsJSON : string; overload;
@@ -155,6 +165,8 @@ type
 
   IJSONObject = interface(IInterface)
     ['{D99D532B-A21C-4135-9DF5-0FFC8538CED4}']
+    function GetOnChange: TChangeObjectHandler;
+    procedure SetOnChange(const Value: TChangeObjectHandler);
     function GetRaw(const name: string): PMultiValue;
     procedure SetRaw(const name: string; const Value: PMultiValue);
     function GetHas(const name : string): Boolean;
@@ -206,6 +218,10 @@ type
     procedure AsJSON(Result : TStringBuilder); overload;
     procedure Reload(const Source : string);
     procedure Clear;
+    property OnChange : TChangeObjectHandler read GetOnChange write SetOnChange;
+    procedure BeginUpdates;
+    procedure EndUpdates;
+    procedure DoChangeNotify;
 
     function Equals(const obj : IJSONObject) : boolean;
     procedure LoadFromStream(Stream : TStream);
@@ -258,10 +274,14 @@ end;
 
 type
   TJSONArray = class(TInterfacedObject, IJSONArray)
-  private // IJSONArray
+  private
+    FUpdating: Boolean;
+    FOnChangeHandler: TChangeArrayHandler; // IJSONArray
     //FParentObject: IJSONObject;
     //FParentArray: IJSONArray;
 
+    function GetOnChange: TChangeArrayHandler;
+    procedure SetOnChange(const Value: TChangeArrayHandler);
     function GetRaw(const idx: integer): PMultiValue;
     procedure SetRaw(const idx: integer; const Value: PMultiValue);
 
@@ -319,6 +339,11 @@ type
     procedure Delete(const idx: Integer);
     procedure Clear;
 
+    property OnChange : TChangeArrayHandler read GetOnChange write SetOnChange;
+    procedure BeginUpdates;
+    procedure EndUpdates;
+    procedure DoChangeNotify;
+
     procedure Remove(const value : string); overload;
     procedure Remove(const value : double); overload;
     procedure Remove(const value : int64); overload;
@@ -353,7 +378,9 @@ type
   end;
 
   TJSONObject = class(TInterfacedObject, IJSONObject)
-  private // IJSONObject
+  private
+    FUpdating: Boolean;
+    FOnChangeHandler: TChangeObjectHandler; // IJSONObject
 
     function GetRaw(const name: string): PMultiValue;
     procedure SetRaw(const name: string; const Value: PMultiValue);
@@ -385,6 +412,8 @@ type
     FValues : TDictionary<string, PMultiValue>;
     procedure DisposeOfValue(Sender: TObject; const Item: PMultiValue; Action: TCollectionNotification);
     function GetValueOf(const name: string): PMultiValue;
+    function GetOnChange: TChangeObjectHandler;
+    procedure SetOnChange(const Value: TChangeObjectHandler);
     property ValueOf[const name : string] : PMultiValue read GetValueOf;
   public  // IJSONObject
     procedure Each(proc : TProcConst<string, PMultiValue>); overload;
@@ -418,7 +447,11 @@ type
     procedure LoadFromFile(Filename : string);
     procedure SaveToStream(Stream : TStream);
     procedure SaveToFile(Filename : string);
+    property OnChange : TChangeObjectHandler read GetOnChange write SetOnChange;
+    procedure BeginUpdates;
+    procedure EndUpdates;
 
+    procedure DoChangeNotify;
     //function ParentArray : IJSONArray;
     //function ParentObject : IJSONObject;
 
@@ -436,8 +469,6 @@ type
     property Names[const idx : integer] : string read GetName;
     property Has[const name : string] : boolean read GetHas;
   public
-    //constructor Create(Parent : IJSONObject); overload; virtual;
-    //constructor Create(Parent : IJSONArray); overload; virtual;
     constructor Create; overload; virtual;
     destructor Destroy; override;
   end;
@@ -766,6 +797,11 @@ begin
   Result.Append(']');
 end;
 
+procedure TJSONArray.BeginUpdates;
+begin
+  FUpdating := True;
+end;
+
 procedure TJSONArray.Clear;
 begin
   while Count > 0 do
@@ -800,6 +836,12 @@ begin
     Dispose(FValues[i]);
   FValues.Free;
   inherited;
+end;
+
+procedure TJSONArray.DoChangeNotify;
+begin
+  if Assigned(FOnChangeHandler) and (not FUpdating) then
+    FOnChangeHandler(Self);
 end;
 
 procedure TJSONArray.Each(proc: TProcConst<int64>);
@@ -856,6 +898,12 @@ var
 begin
   for i := 0 to FValues.Count-1 do
     proc(FValues[i].ObjectValue);
+end;
+
+procedure TJSONArray.EndUpdates;
+begin
+  FUpdating := False;
+  DoChangeNotify;
 end;
 
 procedure TJSONArray.EnsureSize(const idx: integer);
@@ -953,6 +1001,11 @@ function TJSONArray.GetObject(const idx: integer): IJSONObject;
 begin
   VerifyType(FValues.Items[idx].ValueType, TJSONValueType.&object);
   Result := FValues.Items[idx].ObjectValue;
+end;
+
+function TJSONArray.GetOnChange: TChangeArrayHandler;
+begin
+  Result := FOnChangeHandler;
 end;
 
 function TJSONArray.GetRaw(const idx: integer): PMultiValue;
@@ -1270,6 +1323,7 @@ begin
   pmv.Initialize(value);
   FValues.Add(pmv);
   //Value.ParentOverride(Self);
+  DoChangeNotify;
 end;
 
 procedure TJSONArray.SetBoolean(const idx: integer; const Value: Boolean);
@@ -1280,6 +1334,7 @@ begin
   New(pmv);
   pmv.Initialize(value);
   FValues.Add(pmv);
+  DoChangeNotify;
 end;
 
 procedure TJSONArray.SetCount(const Value: integer);
@@ -1287,6 +1342,7 @@ begin
   EnsureSize(Value);
   while FValues.Count > Value do
     FValues.Delete(FValues.Count-1);
+  DoChangeNotify;
 end;
 
 procedure TJSONArray.SetNumber(const idx: integer; const Value: Double);
@@ -1297,6 +1353,7 @@ begin
   New(pmv);
   pmv.Initialize(value);
   FValues.Add(pmv);
+  DoChangeNotify;
 end;
 
 procedure TJSONArray.SetInteger(const idx: integer; const Value: Int64);
@@ -1307,12 +1364,14 @@ begin
   New(pmv);
   pmv.Initialize(value);
   FValues.Add(pmv);
+  DoChangeNotify;
 end;
 
 procedure TJSONArray.SetItem(const idx: integer; const Value: Variant);
 begin
   EnsureSize(idx);
   FValues.Items[idx].Initialize(Value);
+  DoChangeNotify;
 end;
 
 procedure TJSONArray.SetObject(const idx: integer; const Value: IJSONObject);
@@ -1324,6 +1383,12 @@ begin
   pmv.Initialize(value);
   FValues.Add(pmv);
   //value.ParentOverride(Self);
+  DoChangeNotify;
+end;
+
+procedure TJSONArray.SetOnChange(const Value: TChangeArrayHandler);
+begin
+  FOnChangeHandler := Value;
 end;
 
 procedure TJSONArray.SetRaw(const idx: integer; const Value: PMultiValue);
@@ -1344,12 +1409,14 @@ begin
   New(pmv);
   pmv.Initialize(JSONEncode(value));
   FValues.Add(pmv);
+  DoChangeNotify;
 end;
 
 procedure TJSONArray.SetType(const idx: integer; const Value: TJSONValueType);
 begin
   EnsureSize(idx);
   if Value <> FValues.Items[idx].ValueType then
+  begin
     case Value of
       TJSONValueType.string:
         FValues.Items[idx].Initialize('');
@@ -1364,6 +1431,8 @@ begin
       TJSONValueType.null:
         FValues.Items[idx].InitializeNull;
     end;
+    DoChangeNotify;
+  end;
 end;
 
 procedure TJSONArray.Add(const value: PMultiValue);
@@ -1373,6 +1442,7 @@ begin
   New(pmv);
   pmv.Initialize(value);
   FValues.Add(pmv);
+  DoChangeNotify;
 end;
 
 { TJSONObject }
@@ -1414,6 +1484,7 @@ begin
   New(pmv);
   pmv.InitializeNull;
   FValues.AddOrSetValue(Name, pmv);
+  DoChangeNotify;
 end;
 
 procedure TJSONObject.AddCode(const name, value: string);
@@ -1423,6 +1494,7 @@ begin
   New(pmv);
   pmv.InitializeCode(Value);
   FValues.AddOrSetValue(Name, pmv);
+  DoChangeNotify;
 end;
 
 function TJSONObject.AsJSON: string;
@@ -1477,19 +1549,10 @@ begin
 end;
 
 
-{constructor TJSONObject.Create(Parent : IJSONObject);
+procedure TJSONObject.BeginUpdates;
 begin
-  Create;
-  FParentObject := Parent;
-  FParentArray := nil;
+ FUpdating := True;
 end;
-
-constructor TJSONObject.Create(Parent : IJSONArray);
-begin
-  Create;
-  FParentObject := nil;
-  FParentArray := Parent;
-end;}
 
 procedure TJSONObject.Clear;
 begin
@@ -1514,6 +1577,12 @@ procedure TJSONObject.DisposeOfValue(Sender: TObject; const Item: PMultiValue;
 begin
   if Action = TCollectionNotification.cnRemoved then
     Dispose(Item);
+end;
+
+procedure TJSONObject.DoChangeNotify;
+begin
+  if Assigned(FOnChangeHandler) and (not FUpdating) then
+    FOnChangeHandler(Self);
 end;
 
 procedure TJSONObject.Each(proc: TProcConst<string, int64>);
@@ -1554,6 +1623,12 @@ var
 begin
   for item in FValues do
     proc(item.Key, item.Value.ToVariant);
+end;
+
+procedure TJSONObject.EndUpdates;
+begin
+  FUpdating := False;
+  DoChangeNotify;
 end;
 
 procedure TJSONObject.Each(proc: TProcConst<string, PMultiValue>);
@@ -1662,6 +1737,11 @@ begin
   Result := ValueOf[Name].ObjectValue;
 end;
 
+function TJSONObject.GetOnChange: TChangeObjectHandler;
+begin
+  Result := FOnChangeHandler;
+end;
+
 function TJSONObject.GetRaw(const name: string): PMultiValue;
 begin
   Result := FValues.Items[name];
@@ -1713,52 +1793,18 @@ begin
   end;
 end;
 
-{function TJSONObject.ParentArray: IJSONArray;
-begin
-  Result := FParentArray;
-end;
-
-function TJSONObject.ParentObject: IJSONObject;
-begin
-  Result := FParentObject;
-end;
-
-procedure TJSONObject.ParentOverride(parent: IJSONArray);
-begin
-  FParentObject := nil;
-  FParentArray := parent;
-end;
-
-procedure TJSONObject.ParentOverride(parent: IJSONObject);
-begin
-  FParentObject := parent;
-  FParentArray := nil;
-end;}
 
 procedure TJSONObject.Reload(const Source: string);
 begin
   Clear;
-  TParser.ParseTo(Source, Self)
+  TParser.ParseTo(Source, Self);
+  DoChangeNotify;
 end;
 
 procedure TJSONObject.Remove(const name: string);
 begin
   FValues.Remove(name);
 end;
-
-{class function TJSONObject.NewValue: PMultiValue;
-begin
-  //TMonitor.Enter(FCache);
-  //try
-    if FCache.Count = 0 then
-    begin
-      New(Result);
-    end else
-      Result := FCache.Pop;
-  //finally
-    //TMonitor.Exit(FCache);
-  //end;
-end;}
 
 procedure TJSONObject.SaveToFile(Filename: string);
 var
@@ -1795,6 +1841,7 @@ begin
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
   //value.ParentOverride(Self);
+  DoChangeNotify;
 end;
 
 procedure TJSONObject.SetBoolean(const name: string; const Value: Boolean);
@@ -1804,6 +1851,7 @@ begin
   New(pmv);
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
+  DoChangeNotify;
 end;
 
 procedure TJSONObject.SetNumber(const name: string; const Value: Double);
@@ -1813,6 +1861,7 @@ begin
   New(pmv);
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
+  DoChangeNotify;
 end;
 
 procedure TJSONObject.SetInteger(const name: string; const Value: Int64);
@@ -1822,6 +1871,7 @@ begin
   New(pmv);
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
+  DoChangeNotify;
 end;
 
 procedure TJSONObject.SetItem(const name: string; const Value: Variant);
@@ -1835,6 +1885,7 @@ begin
     FValues.AddOrSetValue(Name, pmv);
   end else
     ValueOf[Name].Initialize(Value, true);
+  DoChangeNotify;
 end;
 
 procedure TJSONObject.SetObject(const name: string; const Value: IJSONObject);
@@ -1845,6 +1896,12 @@ begin
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
   //value.ParentOverride(Self);
+  DoChangeNotify;
+end;
+
+procedure TJSONObject.SetOnChange(const Value: TChangeObjectHandler);
+begin
+  FOnChangeHandler := Value;
 end;
 
 procedure TJSONObject.SetRaw(const name: string; const Value: PMultiValue);
@@ -1854,6 +1911,7 @@ begin
   New(pmv);
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
+  DoChangeNotify;
 end;
 
 procedure TJSONObject.SetString(const name, Value: string);
@@ -1863,6 +1921,7 @@ begin
   New(pmv);
   pmv.Initialize(JSONEncode(Value));
   FValues.AddOrSetValue(Name, pmv);
+  DoChangeNotify;
 end;
 
 procedure TJSONObject.SetType(const name: string; const Value: TJSONValueType);
@@ -1888,6 +1947,7 @@ begin
         AddNull(Name);
     end;
   end;
+  DoChangeNotify;
 end;
 
 procedure TJSONObject.Add(const name: string; const value: PMultiValue);
@@ -1902,6 +1962,7 @@ begin
   New(pmv);
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
+  DoChangeNotify;
 end;
 
 { TMultiValue }
