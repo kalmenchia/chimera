@@ -73,14 +73,7 @@ type
     property OnGetID : TIDEvent read FOnGetID write FOnGetID;
   end;
 
-procedure Register;
-
 implementation
-
-procedure Register;
-begin
-  RegisterComponents('PubSub',[TPubSubProducer]);
-end;
 
 { TPubSubProducer }
 

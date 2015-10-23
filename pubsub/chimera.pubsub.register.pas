@@ -11,7 +11,7 @@ implementation
 
 procedure Register;
 begin
-  RegisterComponents('Chimera',[TPubSubProducer,TPubSubHTTPClient]);
+  RegisterComponents('Chimera',[TPubSubProducer,TPubSubHTTPClient, TPubSubHTTPServer]);
 end;
 
 end.

@@ -77,14 +77,7 @@ type
     property OnCommandGet;
   end;
 
-procedure Register;
-
 implementation
-
-procedure Register;
-begin
-  RegisterComponents('PubSub',[TPubSubHTTPServer]);
-end;
 
 { TPubSubHTTPServer }
 

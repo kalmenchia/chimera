@@ -80,16 +80,9 @@ type
     property Syncronize : boolean read FSynchronize write FSynchronize default true;
   end;
 
-procedure Register;
-
 implementation
 
 uses IdSSLOpenSSL, IdCookieManager;
-
-procedure Register;
-begin
-  RegisterComponents('PubSub',[TPubSubHTTPClient]);
-end;
 
 { TPubSubHTTPClient }
 
