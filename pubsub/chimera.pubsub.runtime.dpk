@@ -25,12 +25,13 @@ package chimera.pubsub.runtime;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'PubsubChimera'}
+{$DESCRIPTION 'Chimera Pubsub Runtime'}
 {$RUNONLY}
-{$IMPLICITBUILD ON}
+{$IMPLICITBUILD OFF}
 
 requires
-  rtl;
+  rtl,
+  chimera.json.runtime;
 
 contains
   chimera.pubsub.common in 'chimera.pubsub.common.pas',

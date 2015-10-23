@@ -1,6 +1,7 @@
-package chimera.pubsub.webbroker.runtime;
+package chimera.pubsub.designtime;
 
 {$R *.res}
+{$R *.otares}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
 {$ALIGN 8}
 {$ASSERTIONS ON}
@@ -25,16 +26,17 @@ package chimera.pubsub.webbroker.runtime;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Chimera Pubsub for Webbroker Runtime'}
-{$RUNONLY}
+{$DESCRIPTION 'Chimera Pubsub Designtime'}
+{$DESIGNONLY}
 {$IMPLICITBUILD OFF}
 
 requires
   rtl,
   chimera.pubsub.runtime,
-  inet;
+  chimera.pubsub.indy.runtime,
+  chimera.pubsub.webbroker.runtime;
 
 contains
-  chimera.pubsub.producer in 'chimera.pubsub.producer.pas';
+  chimera.pubsub.register in 'chimera.pubsub.register.pas';
 
 end.

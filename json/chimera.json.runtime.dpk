@@ -25,9 +25,9 @@ package chimera.json.runtime;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'JSONChimera'}
+{$DESCRIPTION 'Chimera JSON Runtime'}
 {$RUNONLY}
-{$IMPLICITBUILD ON}
+{$IMPLICITBUILD OFF}
 
 requires
   rtl;

@@ -1,3 +1,6 @@
 *.o
 *.exe
 *.rsm
+*.local
+*.res
+*.identcache

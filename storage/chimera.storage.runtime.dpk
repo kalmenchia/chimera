@@ -25,9 +25,9 @@ package chimera.storage.runtime;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Storage Engine for Chimera JSON objects'}
+{$DESCRIPTION 'Chimera Storage Engine Runtime'}
 {$RUNONLY}
-{$IMPLICITBUILD ON}
+{$IMPLICITBUILD OFF}
 
 requires
   rtl,

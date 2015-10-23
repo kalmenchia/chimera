@@ -25,7 +25,8 @@ package chimera.storage.local.runtime;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$IMPLICITBUILD ON}
+{$DESCRIPTION 'Chimera Local Storage Engine Runtime'}
+{$IMPLICITBUILD OFF}
 
 requires
   rtl,

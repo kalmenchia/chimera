@@ -25,11 +25,17 @@ package chimera.pubsub.indy.runtime;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$IMPLICITBUILD ON}
+{$DESCRIPTION 'Chimera Pubsub for Indy Runtime'}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
 
 requires
   rtl,
-  chimera.pubsub.runtime;
+  chimera.pubsub.runtime,
+  chimera.json.runtime,
+  IndySystem,
+  IndyProtocols,
+  IndyCore;
 
 contains
   chimera.pubsub.client.idhttp in 'chimera.pubsub.client.idhttp.pas',
