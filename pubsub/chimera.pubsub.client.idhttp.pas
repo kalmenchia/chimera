@@ -34,7 +34,7 @@ unit chimera.pubsub.client.idhttp;
 interface
 
 uses System.SysUtils, System.Classes, IdHTTP, chimera.json,chimera.pubsub.interfaces,
-  System.Generics.Collections {$IFDEF ANDROID},System.ByteStrings{$ENDIF};
+  System.Generics.Collections;
 
 type
   TDataEvent = procedure(Sender : TObject; const channel : IChannel<IJSONObject>; const Context : string; const Data : IJSONObject) of object;
@@ -164,7 +164,7 @@ begin
           if not Channel.StartsWith('/') then
             sHost := sHost+'/';
 
-          ssPost := TStringStream.Create(UTF8String(msg.AsJSON),TEncoding.UTF8);
+          ssPost := TStringStream.Create(msg.AsJSON,TEncoding.UTF8);
           try
             http.Request.ContentType := 'application/json';
             http.Post(sHost+Channel, ssPost);
