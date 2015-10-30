@@ -805,7 +805,11 @@ end;
 procedure TJSONArray.Clear;
 begin
   while Count > 0 do
+  begin
+    if FValues[0].ObjectValue <> nil then
+      FValues[0].ObjectValue.OnChange := nil;
     Delete(0);
+  end;
 end;
 
 {constructor TJSONArray.Create(Parent : IJSONObject);
@@ -829,11 +833,8 @@ begin
 end;
 
 destructor TJSONArray.Destroy;
-var
-  i: Integer;
 begin
-  for i := 0 to FValues.Count-1 do
-    Dispose(FValues[i]);
+  Clear;
   FValues.Free;
   inherited;
 end;
@@ -1311,6 +1312,7 @@ end;
 
 procedure TJSONArray.Delete(const idx: Integer);
 begin
+  Dispose(FValues[idx]);
   FValues.Delete(idx);
 end;
 
@@ -1555,7 +1557,13 @@ begin
 end;
 
 procedure TJSONObject.Clear;
+var
+  mv : TPair<string,PMultiValue>;
 begin
+  for mv in FValues do
+    if mv.Value.ObjectValue <> nil then
+      mv.Value.ObjectValue.OnChange := nil;
+
   FValues.Clear;
 end;
 
@@ -1568,6 +1576,7 @@ end;
 
 destructor TJSONObject.Destroy;
 begin
+  Clear;
   FValues.Free;
   inherited;
 end;

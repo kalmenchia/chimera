@@ -289,6 +289,7 @@ end;
 procedure TParser.ParseObjectTo(const Obj: IJSONObject);
 var
   sName : String;
+  p : Pointer;
 begin
   if FToken <> TParseToken.OpenObject  then
     raise Exception.Create('Object Expected');
@@ -307,20 +308,22 @@ begin
         Obj.Raw[sName] := @FTokenValue;
       TParser.TParseToken.OpenObject:
         begin
+          p := @obj;
           Obj.Objects[sName] := ParseObject;
           Obj.Objects[sName].OnChange :=
             procedure(const jso : IJSONObject)
             begin
-              Obj.DoChangeNotify;
+              IJSONObject(p).DoChangeNotify;
             end;
         end;
       TParser.TParseToken.OpenArray:
         begin
+          p := @obj;
           Obj.Arrays[sName] := ParseArray;
           Obj.Arrays[sName].OnChange :=
             procedure(const jsa : IJSONArray)
             begin
-              Obj.DoChangeNotify;
+              IJSONObject(p).DoChangeNotify;
             end;
         end;
       TParser.TParseToken.Value:
