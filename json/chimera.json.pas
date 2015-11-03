@@ -224,8 +224,8 @@ type
     procedure DoChangeNotify;
 
     function Equals(const obj : IJSONObject) : boolean;
-    procedure LoadFromStream(Stream : TStream);
-    procedure LoadFromFile(Filename : string);
+    function LoadFromStream(Stream : TStream) : IJSONObject;
+    function LoadFromFile(Filename : string) : IJSONObject;
     procedure SaveToStream(Stream : TStream);
     procedure SaveToFile(Filename : string);
     //function ParentArray : IJSONArray;
@@ -443,8 +443,8 @@ type
     procedure AsJSON(var Result : string); overload;
     procedure AsJSON(Result : TStringBuilder); overload;
     procedure Remove(const name: string);
-    procedure LoadFromStream(Stream : TStream);
-    procedure LoadFromFile(Filename : string);
+    function LoadFromStream(Stream : TStream) : IJSONObject;;
+    function LoadFromFile(Filename : string) : IJSONObject;;
     procedure SaveToStream(Stream : TStream);
     procedure SaveToFile(Filename : string);
     property OnChange : TChangeObjectHandler read GetOnChange write SetOnChange;
@@ -1777,19 +1777,19 @@ begin
 
 end;
 
-procedure TJSONObject.LoadFromFile(Filename: string);
+function TJSONObject.LoadFromFile(Filename: string) : IJSONObject;
 var
   fs : TFileStream;
 begin
   fs := TFileStream.Create(Filename, fmOpenRead);
   try
-    LoadFromStream(fs);
+    Result := LoadFromStream(fs);
   finally
     fs.Free;
   end;
 end;
 
-procedure TJSONObject.LoadFromStream(Stream: TStream);
+function TJSONObject.LoadFromStream(Stream: TStream) : IJSONObject;
 var
   ss : TStringStream;
 begin
@@ -1800,6 +1800,7 @@ begin
   finally
     ss.Free;
   end;
+  Result := Self;
 end;
 
 
