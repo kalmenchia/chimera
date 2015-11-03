@@ -443,8 +443,8 @@ type
     procedure AsJSON(var Result : string); overload;
     procedure AsJSON(Result : TStringBuilder); overload;
     procedure Remove(const name: string);
-    function LoadFromStream(Stream : TStream) : IJSONObject;;
-    function LoadFromFile(Filename : string) : IJSONObject;;
+    function LoadFromStream(Stream : TStream) : IJSONObject;
+    function LoadFromFile(Filename : string) : IJSONObject;
     procedure SaveToStream(Stream : TStream);
     procedure SaveToFile(Filename : string);
     property OnChange : TChangeObjectHandler read GetOnChange write SetOnChange;
