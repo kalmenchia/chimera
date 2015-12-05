@@ -1793,7 +1793,7 @@ function TJSONObject.LoadFromStream(Stream: TStream) : IJSONObject;
 var
   ss : TStringStream;
 begin
-  ss := TStringStream.Create;
+  ss := TStringStream.Create('', TEncoding.utf8);
   try
     ss.CopyFrom(Stream, Stream.Size-Stream.Position);
     Reload(ss.DataString);
