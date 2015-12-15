@@ -235,7 +235,7 @@ begin
           while (not TThreadHack(TThread.CurrentThread).Terminated) and bRetry do
           begin
             try
-              ssOut := TStringStream.Create;
+              ssOut := TStringStream.Create('',TEncoding.UTF8);
               try
                 http.Get(sHost+Channel,ssOut);
                 if ssOut.DataString <> '' then
