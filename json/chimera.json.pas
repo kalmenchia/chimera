@@ -633,7 +633,7 @@ begin
           'u': begin
             if TryStrToInt('$'+str.Substring(i+2,4),iChar) then
             begin
-              sb.append(iChar);
+              sb.append(Char(iChar));
               inc(i,4);
             end else
               sb.insert(0, str[i+1]);
