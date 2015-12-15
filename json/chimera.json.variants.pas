@@ -8,12 +8,15 @@ type
   TJSON = Variant;
   TJSONArray = Variant;
 
-  TJSONvarData = packed record
+  {$IFDEF CPU64BITS}{$ALIGN 8}{$ENDIF}
+  TJSONvarData = {$IFNDEF CPU64BITS}packed{$ENDIF} record
     VType : TVarType;
     VObject : IJSONObject;
     Reserved0 : FixedInt;
     Reserved1: FixedInt;
+    {$IFNDEF CPU64BITS}
     Reserved2 : WordBool;
+    {$ENDIF}
   end;
 
   TJSONVariantType = class(TInvokeableVariantType)
