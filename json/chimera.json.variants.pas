@@ -11,8 +11,8 @@ type
   TJSONvarData = packed record
     VType : TVarType;
     VObject : IJSONObject;
-    Reserved0 : NativeInt;
-    Reserved1: LongInt;
+    Reserved0 : FixedInt;
+    Reserved1: FixedInt;
     Reserved2 : WordBool;
   end;
 
@@ -35,7 +35,7 @@ type
     VType : TVarType;
     VArray : IJSONArray;
     Reserved : NativeUInt;
-    Reserved1: LongInt;
+    Reserved1: FixedInt;
     Reserved2 : WordBool;
   end;
 
@@ -197,7 +197,7 @@ procedure TJSONVariantType.DispInvoke(Dest: PVarData; [Ref] const Source: TVarDa
   CallDesc: PCallDesc; Params: Pointer);
 type
   PParamRec = ^TParamRec;
-  TParamRec = array[0..3] of LongInt;
+  TParamRec = array[0..3] of FixedInt;
   TStringDesc = record
     BStr: UnicodeString;
     PStr: PString;
@@ -411,7 +411,7 @@ procedure TJSONArrayVariantType.DispInvoke(Dest: PVarData;
   [Ref] const Source: TVarData; CallDesc: PCallDesc; Params: Pointer);
 type
   PParamRec = ^TParamRec;
-  TParamRec = array[0..3] of LongInt;
+  TParamRec = array[0..3] of FixedInt;
   TStringDesc = record
     BStr: UnicodeString;
     PStr: PString;
