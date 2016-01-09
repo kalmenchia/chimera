@@ -1,4 +1,4 @@
-package chimera.pubsub.indy.runtime;
+package chimera.utility.runtime;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -25,22 +25,18 @@ package chimera.pubsub.indy.runtime;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Chimera Pubsub for Indy Runtime'}
+{$DESCRIPTION 'Chimera Utilities Runtime'}
 {$RUNONLY}
 {$IMPLICITBUILD OFF}
 
 requires
   rtl,
-  chimera.pubsub.runtime,
-  chimera.json.runtime,
   IndySystem,
   IndyProtocols,
-  IndyCore,
-  chimera.utility.runtime;
+  IndyCore;
 
 contains
-  chimera.pubsub.client.idhttp in 'chimera.pubsub.client.idhttp.pas',
-  chimera.pubsub.server.idhttp in 'chimera.pubsub.server.idhttp.pas',
-  chimera.bayeux.client in 'chimera.bayeux.client.pas';
+  chimera.utility.http in '..\pubsub\chimera.utility.http.pas',
+  chimera.utility in 'chimera.utility.pas';
 
 end.
