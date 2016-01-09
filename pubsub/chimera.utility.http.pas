@@ -334,7 +334,7 @@ unit chimera.utility.http;
 
 interface
 
-{$I IdCompilerDefines.inc}
+{$I chimera.IdCompilerDefines.inc}
 
 uses
   Classes,
