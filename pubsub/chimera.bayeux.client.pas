@@ -65,10 +65,14 @@ type
     FOnUnsuccessful : TMessageHandler;
     FExtension: IJSONObject;
     FInterval: Cardinal;
+    FDeferHandshake: Boolean;
+    FOnHandshakeComplete: TProc;
+    function Handshake(http : TIdHTTP) : boolean;
     function DoAuthenticate(var Username : string; var Password : string) : boolean;
     procedure SetupHTTP(http : TIdHTTP);
     procedure SynchronizeCookies(http : TIdHTTP);
     procedure ProcessResponseObject(const obj : IJSONObject);
+    procedure DoHandshake;
   protected
     procedure StartListener(const OnReady : TProc); virtual;
     function GenerateRandomID : string; virtual;
@@ -76,7 +80,7 @@ type
     procedure SendMessage(const Msg : IJSONObject); virtual;
     function NextID : string; virtual;
   public
-    constructor Create(const Endpoint : string);
+    constructor Create(const Endpoint : string; DeferHandshake : boolean = false; OnHandshakeComplete : TProc = nil);
     destructor Destroy; override;
 
     procedure Subscribe(const Channel : string; const OnMessage : TMessageHandler);
@@ -107,12 +111,16 @@ type
 
 { TBayeuxClient }
 
-constructor TBayeuxClient.Create(const Endpoint: string);
+constructor TBayeuxClient.Create(const Endpoint: string; DeferHandshake : boolean = false; OnHandshakeComplete : TProc = nil);
 begin
   inherited Create;
   FMessageID := 0;
   FDispatcher := TDictionary<string, TMessageHandler>.Create;
   FEndpoint := TIdURI.Create(Endpoint);
+  FDeferHandshake := DeferHandshake;
+  FOnHandshakeComplete := OnHandshakeComplete;
+  if not FDeferHandshake then
+    DoHandshake();
 end;
 
 destructor TBayeuxClient.Destroy;
@@ -134,6 +142,27 @@ begin
   Result := Assigned(FOnAuthenticate);
   if Result then
     OnAuthenticate(Username, Password, Result);
+end;
+
+procedure TBayeuxClient.DoHandshake;
+begin
+  TThread.CreateAnonymousThread(
+    procedure
+    var
+      http : TIdHTTP;
+    begin
+      http := TIdHTTP.Create(nil);
+      try
+        SetupHTTP(http);
+
+        Handshake(http);
+
+        SynchronizeCookies(http);
+      finally
+        http.Free;
+      end;
+    end
+  ).Start;
 end;
 
 function TBayeuxClient.DoSendMessage(http: TIdHTTP; const Msg: IJSONObject) : IJSONObject;
@@ -200,6 +229,25 @@ begin
   CreateGUID(g);
   DateTimeToString(sDate, 'yyyymmddhhnnsszzzz', Now);
   Result := THashSHA1.GetHMAC(GuidToString(g),sDate);
+end;
+
+function TBayeuxClient.Handshake(http: TIdHTTP) : boolean;
+var
+  jso : IJSONObject;
+begin
+  jso := JSON;
+  jso.Strings['channel'] := META_HANDSHAKE;
+  jso.Strings['version'] := '1.0';
+  jso.Strings['minimumVersion'] := '1.0beta';
+  jso.Arrays['supportedConnectionTypes'] := JSONArray();
+  jso.Arrays['supportedConnectionTypes'].Add('long-polling');
+  jso := DoSendMessage(http, jso);
+  if jso <> nil then
+    Result := jso.Booleans['successful']
+  else
+    Result := false;
+  if Result and Assigned(FOnHandshakeComplete) then
+    FOnHandshakeComplete();
 end;
 
 function TBayeuxClient.NextID: string;
@@ -462,22 +510,6 @@ procedure TListenerThread.Execute;
     else
       Result := true;
   end;
-  function Handshake(http : TIdHTTP) : boolean;
-  var
-    jso : IJSONObject;
-  begin
-    jso := JSON;
-    jso.Strings['channel'] := FOwner.META_HANDSHAKE;
-    jso.Strings['version'] := '1.0';
-    jso.Strings['minimumVersion'] := '1.0beta';
-    jso.Arrays['supportedConnectionTypes'] := JSONArray();
-    jso.Arrays['supportedConnectionTypes'].Add('long-polling');
-    jso := FOwner.DoSendMessage(http, jso);
-    if jso <> nil then
-      Result := jso.Booleans['successful']
-    else
-      Result := true;
-  end;
 var
   http : TIdHTTP;
   sUser, sPass : string;
@@ -487,8 +519,10 @@ begin
   try
     FOwner.SetupHTTP(http);
     http.OnChunkReceived := OnChunkReceived;
-
-    if Handshake(http) then
+    if (not FOwner.FDeferHandshake) or FOwner.Handshake(http) then
+    begin
+      http.Request.Connection := 'keep-alive';
+      http.Request.TransferEncoding := 'chunked';
       repeat
         if Connect(http) then
         begin
@@ -503,6 +537,7 @@ begin
           break;
       until (Terminated);
 
+    end;
   finally
     http.Free;
   end;
