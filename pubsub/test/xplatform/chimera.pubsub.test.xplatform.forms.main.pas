@@ -81,19 +81,23 @@ begin
   txtHost.Enabled := False;
   txtMessage.Enabled := True;
   btnConnect.Enabled := False;
-  FPubsub := TBayeuxClient.Create(txtHost.Text);
-  FPubsub.OnUnsuccessful :=
-    procedure(const msg : IJSONObject)
+  FPubsub := TBayeuxClient.Create(txtHost.Text, False,
+    procedure
     begin
-      AddErrorMessage(msg.Strings['error']);
-    end;
-  FPubsub.Subscribe('/chatdemo',
-    procedure(const msg : IJSONObject)
-    begin
-      AddChatMessage(msg.Strings['from'], msg.Strings['msg'], Now);
+      FPubsub.OnUnsuccessful :=
+        procedure(const msg : IJSONObject)
+        begin
+          AddErrorMessage(msg.Strings['error']);
+        end;
+      FPubsub.Subscribe('/chatdemo',
+        procedure(const msg : IJSONObject)
+        begin
+          AddChatMessage(msg.Strings['from'], msg.Strings['msg'], Now);
+        end
+      );
+      FPubsub.Publish('/chatdemo',NewMessage('system', 'User '+txtUsername.Text+' has connected.'));
     end
   );
-  //FPubsub.Publish('/chatdemo',NewMessage('system', 'User '+txtUsername.Text+' has connected.'));
 end;
 
 procedure TForm2.btnSendClick(Sender: TObject);

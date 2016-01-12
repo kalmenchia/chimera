@@ -34,9 +34,10 @@ object Form2: TForm2
       StyleLookup = ''
       TabOrder = 0
       Text = 'Faye / Bayeux'
+      ExplicitSize.cx = 93.000000000000000000
+      ExplicitSize.cy = 26.000000000000000000
       object btnConnect: TButton
-        Anchors = [akTop, akRight]
-        Position.X = 560.000000000000000000
+        Position.X = 564.000000000000000000
         Position.Y = 16.000000000000000000
         Size.Width = 56.000000000000000000
         Size.Height = 22.000000000000000000
@@ -46,10 +47,9 @@ object Form2: TForm2
         OnClick = btnConnectClick
       end
       object btnSend: TButton
-        Anchors = [akTop, akRight]
         Default = True
         Enabled = False
-        Position.X = 559.000000000000000000
+        Position.X = 564.000000000000000000
         Position.Y = 44.000000000000000000
         Size.Width = 56.000000000000000000
         Size.Height = 22.000000000000000000
@@ -61,7 +61,7 @@ object Form2: TForm2
       object txtHost: TEdit
         Touch.InteractiveGestures = [LongTap, DoubleTap]
         TabOrder = 2
-        Text = 'http://127.0.0.1/9292'
+        Text = 'http://127.0.0.1:9292'
         Position.X = 160.000000000000000000
         Position.Y = 16.000000000000000000
         Size.Width = 393.000000000000000000
@@ -71,7 +71,6 @@ object Form2: TForm2
       end
       object txtMessage: TEdit
         Touch.InteractiveGestures = [LongTap, DoubleTap]
-        Anchors = [akLeft, akTop, akRight]
         TabOrder = 3
         Position.X = 16.000000000000000000
         Position.Y = 44.000000000000000000
@@ -93,9 +92,8 @@ object Form2: TForm2
         TextPrompt = 'Username'
       end
       object web: TWebBrowser
-        Anchors = [akLeft, akTop, akRight, akBottom]
-        Size.Width = 601.000000000000000000
-        Size.Height = 360.000000000000000000
+        Size.Width = 603.000000000000000000
+        Size.Height = 361.000000000000000000
         Size.PlatformDefault = False
         Position.X = 16.000000000000000000
         Position.Y = 72.000000000000000000
