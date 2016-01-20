@@ -65,7 +65,7 @@ type
     FOnUnsuccessful : TMessageHandler;
     FExtension: IJSONObject;
     FInterval: Cardinal;
-    FDeferHandshake: Boolean;
+    FDeferConnect: Boolean;
     FOnHandshakeComplete: TProc;
     function Handshake(http : TIdHTTP) : boolean;
     function DoAuthenticate(var Username : string; var Password : string) : boolean;
@@ -74,13 +74,13 @@ type
     procedure ProcessResponseObject(const obj : IJSONObject);
     procedure DoHandshake;
   protected
-    procedure StartListener(const OnReady : TProc); virtual;
+    procedure StartListener(const OnReady : TProc = nil); virtual;
     function GenerateRandomID : string; virtual;
     function DoSendMessage(http : TIdHTTP; const Msg : IJSONObject) : IJSONObject; virtual;
     procedure SendMessage(const Msg : IJSONObject); virtual;
     function NextID : string; virtual;
   public
-    constructor Create(const Endpoint : string; DeferHandshake : boolean = false; OnHandshakeComplete : TProc = nil);
+    constructor Create(const Endpoint : string; DeferConnect : boolean = false; OnHandshakeComplete : TProc = nil);
     destructor Destroy; override;
 
     procedure Subscribe(const Channel : string; const OnMessage : TMessageHandler);
@@ -111,16 +111,16 @@ type
 
 { TBayeuxClient }
 
-constructor TBayeuxClient.Create(const Endpoint: string; DeferHandshake : boolean = false; OnHandshakeComplete : TProc = nil);
+constructor TBayeuxClient.Create(const Endpoint: string; DeferConnect : boolean = false; OnHandshakeComplete : TProc = nil);
 begin
   inherited Create;
   FMessageID := 0;
   FDispatcher := TDictionary<string, TMessageHandler>.Create;
   FEndpoint := TIdURI.Create(Endpoint);
-  FDeferHandshake := DeferHandshake;
+  FDeferConnect := DeferConnect;
   FOnHandshakeComplete := OnHandshakeComplete;
-  if not FDeferHandshake then
-    DoHandshake();
+  if not FDeferConnect then
+    StartListener;
 end;
 
 destructor TBayeuxClient.Destroy;
@@ -396,7 +396,7 @@ begin
     http.Request.Username := sUser;
     http.Request.Password := sPass;
   end;
-  http.Request.UserAgent := 'Chimera Bbayeux Client';
+  http.Request.UserAgent := 'Chimera Bayeux Client';
   http.IOHandler := TIdSSLIOHandlerSocketOpenSSL.Create(http);
   TThread.Synchronize(TThread.Current,
     procedure
@@ -407,12 +407,12 @@ begin
 
 end;
 
-procedure TBayeuxClient.StartListener(const OnReady : TProc);
+procedure TBayeuxClient.StartListener(const OnReady : TProc = nil);
 begin
   if not Assigned(FListener) then
   begin
     FListener := TListenerThread.Create(Self, OnReady);
-  end else
+  end else if Assigned(OnReady) then
     OnReady();
 end;
 
@@ -519,7 +519,7 @@ begin
   try
     FOwner.SetupHTTP(http);
     http.OnChunkReceived := OnChunkReceived;
-    if (not FOwner.FDeferHandshake) or FOwner.Handshake(http) then
+    if FOwner.Handshake(http) then
     begin
       http.Request.Connection := 'keep-alive';
       http.Request.TransferEncoding := 'chunked';
