@@ -351,6 +351,16 @@
   {$ENDIF}
 {$ENDIF}
 
+//Delphi & CBuilder XE9 (Aitana)
+{$IFDEF VER310}
+  {$DEFINE VCL_XE9}
+  {$IFDEF CBUILDER}
+    {$DEFINE CBUILDER_XE9}
+  {$ELSE}
+    {$DEFINE DELPHI_XE9}
+  {$ENDIF}
+{$ENDIF}
+
 // Delphi.NET
 // Covers D8+
 {$IFDEF CIL}
