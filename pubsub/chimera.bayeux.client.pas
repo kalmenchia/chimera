@@ -67,6 +67,8 @@ type
     FInterval: Cardinal;
     FDeferConnect: Boolean;
     FOnHandshakeComplete: TProc;
+    FOnLogMessage: TMessageHandler;
+    FOnLogResponse: TMessageHandler;
     function Handshake(http : TIdHTTP) : boolean;
     function DoAuthenticate(var Username : string; var Password : string) : boolean;
     procedure SetupHTTP(http : TIdHTTP);
@@ -80,12 +82,16 @@ type
     procedure SendMessage(const Msg : IJSONObject); virtual;
     function NextID : string; virtual;
   public
-    constructor Create(const Endpoint : string; DeferConnect : boolean = false; OnHandshakeComplete : TProc = nil);
+    constructor Create(const Endpoint : string; DeferConnect : boolean = false;
+      const OnHandshakeComplete : TProc = nil; const OnLogMessage : TMessageHandler = nil;
+      const OnLogResponse : TMessageHandler = nil);
     destructor Destroy; override;
 
     procedure Subscribe(const Channel : string; const OnMessage : TMessageHandler);
     procedure Unsubscribe(const Channel : string);
     procedure Publish(const Channel : string; const Msg : IJSONObject);
+    property OnLogMessage : TMessageHandler read FOnLogMessage write FOnLogMessage;
+    property OnLogResponse : TMessageHandler read FOnLogResponse write FOnLogResponse;
     property OnAuthenticate : TAuthenticateHandler read FOnAuthenticate write FOnAuthenticate;
     property OnUnsuccessful : TMessageHandler read FOnUnsuccessful write FOnUnsuccessful;
     property CookieManager : TIdCookieManager read FCookieManager;
@@ -111,7 +117,9 @@ type
 
 { TBayeuxClient }
 
-constructor TBayeuxClient.Create(const Endpoint: string; DeferConnect : boolean = false; OnHandshakeComplete : TProc = nil);
+constructor TBayeuxClient.Create(const Endpoint: string; DeferConnect : boolean = false;
+      const OnHandshakeComplete : TProc = nil; const OnLogMessage : TMessageHandler = nil;
+      const OnLogResponse : TMessageHandler = nil);
 begin
   inherited Create;
   FMessageID := 0;
@@ -119,6 +127,8 @@ begin
   FEndpoint := TIdURI.Create(Endpoint);
   FDeferConnect := DeferConnect;
   FOnHandshakeComplete := OnHandshakeComplete;
+  FOnLogMessage := OnLogMessage;
+  FOnLogResponse := OnLogResponse;
   if not FDeferConnect then
     StartListener;
 end;
@@ -192,6 +202,8 @@ var
   c: Char;
   jsoError : IJSONObject;
 begin
+  if Assigned(FOnLogMessage) then
+    FOnLogMessage(msg);
   try
     ssSource := TStringStream.Create(msg.AsJSON, TEncoding.UTF8);
     ssResponse := TStringStream.Create('',TEncoding.UTF8);
@@ -217,8 +229,11 @@ begin
       jsoError.Booleans['successful'] := false;
       jsoError.Strings['error'] := 'Local Send Message Error: '+e.Message;
       ProcessResponseObject(jsoError);
+      result := jsoError;
     end;
   end;
+  if Assigned(FOnLogResponse) then
+    FOnLogResponse(msg);
 end;
 
 function TBayeuxClient.GenerateRandomID: string;
@@ -246,8 +261,12 @@ begin
     Result := jso.Booleans['successful']
   else
     Result := false;
-  if Result and Assigned(FOnHandshakeComplete) then
-    FOnHandshakeComplete();
+  if Result then
+  begin
+    if Assigned(FOnHandshakeComplete) then
+      FOnHandshakeComplete()
+  end else
+    FOnUnsuccessful(jso);
 end;
 
 function TBayeuxClient.NextID: string;
