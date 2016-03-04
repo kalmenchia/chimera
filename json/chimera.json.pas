@@ -82,6 +82,7 @@ type
     function GetCount: integer;
     function GetNumber(const idx: integer): Double;
     function GetDate(const idx: integer): TDateTime;
+    function GetIntDate(const idx: integer): TDateTime;
     function GetInteger(const idx: integer): Int64;
     function GetItem(const idx: integer): Variant;
     function GetString(const idx: integer): string;
@@ -92,6 +93,7 @@ type
     procedure SetCount(const Value: integer);
     procedure SetNumber(const idx: integer; const Value: Double);
     procedure SetDate(const idx: integer; const Value: TDateTime);
+    procedure SetIntDate(const idx: integer; const Value: TDateTime);
     procedure SetInteger(const idx: integer; const Value: Int64);
     procedure SetItem(const idx: integer; const Value: Variant);
     procedure SetString(const idx: integer; const Value: string);
@@ -157,6 +159,7 @@ type
     property Strings[const idx : integer] : string read GetString write SetString;
     property Numbers[const idx : integer] : Double read GetNumber write SetNumber;
     property Dates[const idx : integer] : TDateTime read GetDate write SetDate;
+    property IntDates[const idx : integer] : TDateTime read GetIntDate write SetIntDate;
     property Integers[const idx : integer] : Int64 read GetInteger write SetInteger;
     property Booleans[const idx : integer] : Boolean read GetBoolean write SetBoolean;
     property Objects[const idx : integer] : IJSONObject read GetObject write SetObject;
@@ -177,6 +180,7 @@ type
     function GetCount: integer;
     function GetNumber(const name : string): Double;
     function GetDate(const name : string): TDateTime;
+    function GetIntDate(const name : string): TDateTime;
     function GetInteger(const name : string): Int64;
     function GetItem(const name : string): Variant;
     function GetString(const name : string): string;
@@ -187,6 +191,7 @@ type
     procedure SetBoolean(const name : string; const Value: Boolean);
     procedure SetNumber(const name : string; const Value: Double);
     procedure SetDate(const name : string; const Value: TDateTime);
+    procedure SetIntDate(const name : string; const Value: TDateTime);
     procedure SetInteger(const name : string; const Value: Int64);
     procedure SetItem(const name : string; const Value: Variant);
     procedure SetString(const name : string; const Value: string);
@@ -239,6 +244,7 @@ type
     property Strings[const name : string] : string read GetString write SetString;
     property Numbers[const name : string] : Double read GetNumber write SetNumber;
     property Dates[const name : string] : TDateTime read GetDate write SetDate;
+    property IntDates[const name : string] : TDateTime read GetIntDate write SetIntDate;
     property Integers[const name : string] : Int64 read GetInteger write SetInteger;
     property Booleans[const name : string] : Boolean read GetBoolean write SetBoolean;
     property Objects[const name : string] : IJSONObject read GetObject write SetObject;
@@ -295,6 +301,7 @@ type
     function GetCount: integer;
     function GetNumber(const idx: integer): Double;
     function GetDate(const idx: Integer): TDateTime;
+    function GetIntDate(const idx: Integer): TDateTime;
     function GetInteger(const idx: integer): Int64;
     function GetItem(const idx: integer): Variant;
     function GetString(const idx: integer): string;
@@ -305,6 +312,7 @@ type
     procedure SetCount(const Value: integer);
     procedure SetNumber(const idx: integer; const Value: Double);
     procedure SetDate(const idx: Integer; const Value: TDateTime);
+    procedure SetIntDate(const idx: Integer; const Value: TDateTime);
     procedure SetInteger(const idx: integer; const Value: Int64);
     procedure SetItem(const idx: integer; const Value: Variant);
     procedure SetString(const idx: integer; const Value: string);
@@ -372,6 +380,7 @@ type
     property Strings[const idx : integer] : string read GetString write SetString;
     property Numbers[const idx : integer] : Double read GetNumber write SetNumber;
     property Dates[const idx : integer] : TDateTime read GetDate write SetDate;
+    property IntDates[const idx : integer] : TDateTime read GetDate write SetDate;
     property Integers[const idx : integer] : Int64 read GetInteger write SetInteger;
     property Booleans[const idx : integer] : Boolean read GetBoolean write SetBoolean;
     property Objects[const idx : integer] : IJSONObject read GetObject write SetObject;
@@ -400,6 +409,7 @@ type
     function GetCount: integer;
     function GetNumber(const name : string): Double;
     function GetDate(const name : string): TDateTime;
+    function GetIntDate(const name : string): TDateTime;
     function GetInteger(const name : string): Int64;
     function GetItem(const name : string): Variant;
     function GetString(const name : string): string;
@@ -410,6 +420,7 @@ type
     procedure SetBoolean(const name : string; const Value: Boolean);
     procedure SetNumber(const name : string; const Value: Double);
     procedure SetDate(const name : string; const Value: TDateTime);
+    procedure SetIntDate(const name : string; const Value: TDateTime);
     procedure SetInteger(const name : string; const Value: Int64);
     procedure SetItem(const name : string; const Value: Variant);
     procedure SetString(const name : string; const Value: string);
@@ -471,6 +482,7 @@ type
     property Strings[const name : string] : string read GetString write SetString;
     property Numbers[const name : string] : Double read GetNumber write SetNumber;
     property Dates[const name : string] : TDateTime read GetDate write SetDate;
+    property IntDates[const name : string] : TDateTime read GetIntDate write SetIntDate;
     property Integers[const name : string] : Int64 read GetInteger write SetInteger;
     property Booleans[const name : string] : Boolean read GetBoolean write SetBoolean;
     property Objects[const name : string] : IJSONObject read GetObject write SetObject;
@@ -1003,6 +1015,11 @@ begin
   Result := FValues.Items[idx].NumberValue;
 end;
 
+function TJSONArray.GetIntDate(const idx: Integer): TDateTime;
+begin
+  Result := IncSecond(EncodeDate(1970,1,1),GetInteger(idx));
+end;
+
 function TJSONArray.GetInteger(const idx: integer): Int64;
 begin
   VerifyType(FValues.Items[idx].ValueType, TJSONValueType.number);
@@ -1380,6 +1397,11 @@ begin
   DoChangeNotify;
 end;
 
+procedure TJSONArray.SetIntDate(const idx: Integer; const Value: TDateTime);
+begin
+  SetInteger(idx, SecondsBetween(EncodeDate(1970,1,1),Value));
+end;
+
 procedure TJSONArray.SetInteger(const idx: integer; const Value: Int64);
 var
   pmv : PMultiValue;
@@ -1750,6 +1772,11 @@ begin
   Result := ValueOf[Name].NumberValue;
 end;
 
+function TJSONObject.GetIntDate(const name: string): TDateTime;
+begin
+  Result := IncSecond(EncodeDate(1970,1,1),GetInteger(name));
+end;
+
 function TJSONObject.GetInteger(const name: string): Int64;
 begin
   VerifyType(ValueOf[Name].ValueType, TJSONValueType.number);
@@ -1904,6 +1931,11 @@ begin
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
   DoChangeNotify;
+end;
+
+procedure TJSONObject.SetIntDate(const name: string; const Value: TDateTime);
+begin
+  SetInteger(name, SecondsBetween(EncodeDate(1970,1,1),Value));
 end;
 
 procedure TJSONObject.SetInteger(const name: string; const Value: Int64);
