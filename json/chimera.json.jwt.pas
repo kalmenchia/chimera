@@ -17,6 +17,7 @@ type
   end;
 
   TJWTPayload = record
+  private
     Data : IJSONObject;
     function GetISS: string;
     procedure SetISS(const Value: string);
@@ -35,6 +36,7 @@ type
     procedure SetJTI(const Value: string);
     procedure SetSUB(const Value: string);
 
+  public
     property iss : string read GetISS write SetISS;
     property exp : TDateTime read GetEXP write SetEXP;
     property nbf : TDateTime read GetNBF write SetNBF;
@@ -133,15 +135,16 @@ var
 begin
   if JWT = '' then
   begin
-    Header.Default;
-    Payload.Data := JSON;
+    Self.Header.Default;
+    Self.Payload.Data := JSON;
   end else
   begin
     ary := SplitJWT(JWT, 2);
-    Result.Initialize;
-    Result.Header.Alg := 'NONE';
-    Result.Payload.Data := JSON(TNetEncoding.Base64.Decode(ary[1]));
+    Self.Initialize;
+    Self.Header.Alg := 'NONE';
+    Self.Payload.Data := JSON(TNetEncoding.Base64.Decode(ary[1]));
   end;
+  Result := Self;
 end;
 
 function TJWT.SignHS224(const Secret: string): string;
