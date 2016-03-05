@@ -1,4 +1,4 @@
-package chimera.pubsub.designtime;
+package chimera.utility.runtime;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -25,17 +25,18 @@ package chimera.pubsub.designtime;
 {$IMAGEBASE $400000}
 {$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
-{$DESCRIPTION 'Chimera Pubsub Designtime'}
-{$DESIGNONLY}
+{$DESCRIPTION 'Chimera Utilities Runtime'}
+{$RUNONLY}
 {$IMPLICITBUILD OFF}
 
 requires
   rtl,
-  chimera.pubsub.runtime,
-  chimera.pubsub.indy.runtime,
-  chimera.pubsub.webbroker.runtime;
+  IndySystem,
+  IndyProtocols,
+  IndyCore;
 
 contains
-  chimera.pubsub.register in 'chimera.pubsub.register.pas';
+  chimera.utility.http in '..\pubsub\chimera.utility.http.pas',
+  chimera.utility in 'chimera.utility.pas';
 
 end.

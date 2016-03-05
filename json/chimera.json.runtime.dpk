@@ -36,6 +36,8 @@ contains
   chimera.json.parser in 'chimera.json.parser.pas',
   chimera.json in 'chimera.json.pas',
   chimera.json.variants in 'chimera.json.variants.pas',
-  chimera.json.helpers in 'chimera.json.helpers.pas';
+  chimera.json.helpers in 'chimera.json.helpers.pas',
+  chimera.json.jwt in 'chimera.json.jwt.pas',
+  chimera.json.jwk in 'chimera.json.jwk.pas';
 
 end.

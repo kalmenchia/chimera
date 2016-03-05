@@ -1,11 +1,103 @@
 object Form2: TForm2
   Left = 0
   Top = 0
+  ActiveControl = txtMessage
   Caption = 'Form2'
   ClientHeight = 480
   ClientWidth = 640
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
   DesignerMasterStyle = 0
+  object TabControl1: TTabControl
+    Align = Client
+    Margins.Left = 4.000000000000000000
+    Margins.Top = 4.000000000000000000
+    Margins.Right = 4.000000000000000000
+    Margins.Bottom = 4.000000000000000000
+    Size.Width = 632.000000000000000000
+    Size.Height = 472.000000000000000000
+    Size.PlatformDefault = False
+    TabIndex = 0
+    TabOrder = 1
+    TabPosition = PlatformDefault
+    object TabItem1: TTabItem
+      CustomIcon = <
+        item
+        end>
+      IsSelected = True
+      Size.Width = 93.000000000000000000
+      Size.Height = 26.000000000000000000
+      Size.PlatformDefault = False
+      StyleLookup = ''
+      TabOrder = 0
+      Text = 'Faye / Bayeux'
+      ExplicitSize.cx = 93.000000000000000000
+      ExplicitSize.cy = 26.000000000000000000
+      object btnConnect: TButton
+        Position.X = 564.000000000000000000
+        Position.Y = 16.000000000000000000
+        Size.Width = 56.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        Text = 'Connect'
+        OnClick = btnConnectClick
+      end
+      object btnSend: TButton
+        Default = True
+        Enabled = False
+        Position.X = 564.000000000000000000
+        Position.Y = 44.000000000000000000
+        Size.Width = 56.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 1
+        Text = 'Send'
+        OnClick = btnSendClick
+      end
+      object txtHost: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        TabOrder = 2
+        Text = 'http://127.0.0.1:9292'
+        Position.X = 160.000000000000000000
+        Position.Y = 16.000000000000000000
+        Size.Width = 393.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TextPrompt = 'Server'
+      end
+      object txtMessage: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        TabOrder = 3
+        Position.X = 16.000000000000000000
+        Position.Y = 44.000000000000000000
+        Enabled = False
+        Size.Width = 537.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TextPrompt = 'Message'
+        OnKeyUp = txtMessageKeyUp
+      end
+      object txtUsername: TEdit
+        Touch.InteractiveGestures = [LongTap, DoubleTap]
+        TabOrder = 4
+        Position.X = 16.000000000000000000
+        Position.Y = 16.000000000000000000
+        Size.Width = 137.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TextPrompt = 'Username'
+      end
+      object web: TWebBrowser
+        Size.Width = 603.000000000000000000
+        Size.Height = 361.000000000000000000
+        Size.PlatformDefault = False
+        Position.X = 16.000000000000000000
+        Position.Y = 72.000000000000000000
+      end
+    end
+  end
 end
