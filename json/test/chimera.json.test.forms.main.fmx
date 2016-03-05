@@ -44,5 +44,12 @@ object Form1: TForm1
       Text = 'JWT'
       OnClick = btnJWTClick
     end
+    object btnJWK: TButton
+      Position.X = 248.000000000000000000
+      Position.Y = 440.000000000000000000
+      TabOrder = 3
+      Text = 'JWK'
+      OnClick = btnJWKClick
+    end
   end
 end
