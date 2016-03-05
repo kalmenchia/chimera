@@ -48,6 +48,8 @@ type
   TChangeObjectHandler = reference to procedure(const obj : IJSONObject);
   TChangeArrayHandler = reference to procedure(const ary : IJSONArray);
 
+  TWhitespace = (compact, standard);
+
   PMultiValue = ^TMultiValue;
   TMultiValue = record
     ValueType : TJSONValueType;
@@ -141,9 +143,9 @@ type
 
     function Equals(const obj : IJSONArray) : boolean;
 
-    function AsJSON : string; overload;
-    procedure AsJSON(var Result : string); overload;
-    procedure AsJSON(Result : TStringBuilder); overload;
+    function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
+    procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
 
     procedure Each(proc : TProcConst<string>); overload;
     procedure Each(proc : TProcConst<double>); overload;
@@ -223,9 +225,9 @@ type
     procedure Remove(const name : string);
     procedure AddNull(const name : string);
     procedure AddCode(const name : string; const value : string);
-    function AsJSON : string; overload;
-    procedure AsJSON(var Result : string); overload;
-    procedure AsJSON(Result : TStringBuilder); overload;
+    function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
+    procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     procedure Reload(const Source : string);
     procedure Clear;
     property OnChange : TChangeObjectHandler read GetOnChange write SetOnChange;
@@ -236,8 +238,8 @@ type
     function Equals(const obj : IJSONObject) : boolean;
     function LoadFromStream(Stream : TStream) : IJSONObject;
     function LoadFromFile(Filename : string) : IJSONObject;
-    procedure SaveToStream(Stream : TStream);
-    procedure SaveToFile(Filename : string);
+    procedure SaveToStream(Stream : TStream; Whitespace : TWhitespace = TWhitespace.Standard);
+    procedure SaveToFile(Filename : string; Whitespace : TWhitespace = TWhitespace.Standard);
     //function ParentArray : IJSONArray;
     //function ParentObject : IJSONObject;
 
@@ -349,9 +351,9 @@ type
     procedure Add(const value : Variant); overload;
     procedure AddNull;
     procedure AddCode(const value : string);
-    function AsJSON : string; overload;
-    procedure AsJSON(var Result : string); overload;
-    procedure AsJSON(Result : TStringBuilder); overload;
+    function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
+    procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     procedure Delete(const idx: Integer);
     procedure Clear;
 
@@ -461,14 +463,14 @@ type
     procedure Add(const name : string; const value : Variant); overload;
     procedure AddNull(const name : string);
     procedure AddCode(const name : string; const value : string);
-    function AsJSON : string; overload;
-    procedure AsJSON(var Result : string); overload;
-    procedure AsJSON(Result : TStringBuilder); overload;
+    function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
+    procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     procedure Remove(const name: string);
     function LoadFromStream(Stream : TStream) : IJSONObject;
     function LoadFromFile(Filename : string) : IJSONObject;
-    procedure SaveToStream(Stream : TStream);
-    procedure SaveToFile(Filename : string);
+    procedure SaveToStream(Stream : TStream; Whitespace : TWhitespace = TWhitespace.Standard);
+    procedure SaveToFile(Filename : string; Whitespace : TWhitespace = TWhitespace.Standard);
     property OnChange : TChangeObjectHandler read GetOnChange write SetOnChange;
     procedure BeginUpdates;
     procedure EndUpdates;
@@ -496,6 +498,30 @@ type
     constructor Create; overload; virtual;
     destructor Destroy; override;
   end;
+
+function WhiteChar(c : Char; Whitespace : TWhitespace) : String; inline;
+begin
+  case Whitespace of
+    TWhitespace.compact: Result := c;
+    TWhitespace.standard: Result := ' '+c+' ';
+  end;
+end;
+
+function WhiteCharBefore(c : Char; Whitespace : TWhitespace) : String; inline;
+begin
+  case Whitespace of
+    TWhitespace.compact: Result := c;
+    TWhitespace.standard: Result := ' '+c;
+  end;
+end;
+
+function WhiteCharAfter(c : Char; Whitespace : TWhitespace) : String; inline;
+begin
+  case Whitespace of
+    TWhitespace.compact: Result := c;
+    TWhitespace.standard: Result := c+' ';
+  end;
+end;
 
 function StringIsJSON(const str : string) : boolean;
 begin
@@ -787,13 +813,13 @@ begin
   FValues.Add(pmv);
 end;
 
-function TJSONArray.AsJSON: string;
+function TJSONArray.AsJSON(Whitespace : TWhitespace = TWhitespace.Standard): string;
 begin
   Result := '';
-  AsJSON(Result);
+  AsJSON(Result, Whitespace);
 end;
 
-procedure TJSONArray.AsJSON(var Result : string);
+procedure TJSONArray.AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   i: Integer;
 begin
@@ -801,13 +827,13 @@ begin
   for i := 0 to FValues.Count-1 do
   begin
     if i > 0 then
-      Result := Result+',';
+      Result := Result+WhiteChar(',', Whitespace);
     FValues[i].AsJSON(Result);
   end;
   Result := Result+']';
 end;
 
-procedure TJSONArray.AsJSON(Result : TStringBuilder);
+procedure TJSONArray.AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   i: Integer;
 begin
@@ -815,7 +841,7 @@ begin
   for i := 0 to FValues.Count-1 do
   begin
     if i > 0 then
-      Result.Append(',');
+      Result.Append(WhiteChar(',', Whitespace));
     FValues[i].AsJSON(Result);
   end;
   Result.Append(']');
@@ -1543,20 +1569,20 @@ begin
   DoChangeNotify;
 end;
 
-function TJSONObject.AsJSON: string;
+function TJSONObject.AsJSON(Whitespace : TWhitespace = TWhitespace.Standard): string;
 var
   sb : TStringBuilder;
 begin
   sb := TStringBuilder.Create;
   try
-    AsJSON(sb);
+    AsJSON(sb, Whitespace);
     Result := sb.ToString;
   finally
     sb.Free;
   end;
 end;
 
-procedure TJSONObject.AsJSON(var Result : string);
+procedure TJSONObject.AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   item : TPair<string, PMultiValue>;
   bFirst : boolean;
@@ -1566,16 +1592,16 @@ begin
   for item in FValues do
   begin
     if not bFirst then
-      Result := Result +', "'+item.Key+'" : '
+      Result := Result +WhiteChar(',', Whitespace)+'"'+item.Key+'"'+WhiteChar(':', Whitespace)
     else
-      Result := Result+'"'+item.Key+'" : ';
+      Result := Result+'"'+item.Key+'"'+WhiteChar(':', Whitespace);
     item.Value.AsJSON(Result);
     bFirst := False;
   end;
   Result := Result+'}';
 end;
 
-procedure TJSONObject.AsJSON(Result: TStringBuilder);
+procedure TJSONObject.AsJSON(Result: TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   item : TPair<string, PMultiValue>;
   bFirst : boolean;
@@ -1585,9 +1611,9 @@ begin
   for item in FValues do
   begin
     if not bFirst then
-      Result.Append(', "'+item.Key+'" : ')
+      Result.Append(WhiteCharAfter(',', Whitespace)+'"'+item.Key+'"'+WhiteChar(':', Whitespace))
     else
-      Result.Append('"'+item.Key+'" : ');
+      Result.Append('"'+item.Key+'"'+WhiteChar(':', Whitespace));
     item.Value.AsJSON(Result);
     bFirst := False;
   end;
@@ -1870,26 +1896,26 @@ begin
   FValues.Remove(name);
 end;
 
-procedure TJSONObject.SaveToFile(Filename: string);
+procedure TJSONObject.SaveToFile(Filename: string; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   fs : TFileStream;
 begin
   fs := TFileStream.Create(Filename, fmOpenReadWrite or fmCreate);
   try
-    SaveToStream(fs);
+    SaveToStream(fs, Whitespace);
   finally
     fs.Free;
   end;
 end;
 
-procedure TJSONObject.SaveToStream(Stream: TStream);
+procedure TJSONObject.SaveToStream(Stream: TStream; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   sb : TStringBuilder;
   bytes : TArray<Byte>;
 begin
   sb := TStringBuilder.Create;
   try
-    AsJSON(sb);
+    AsJSON(sb, Whitespace);
     bytes := TEncoding.UTF8.GetBytes(sb.ToString);
     Stream.Write(bytes,length(bytes));
   finally
