@@ -12,8 +12,10 @@ type
     txtMsg: TMemo;
     Layout1: TLayout;
     btnChangeFont: TButton;
+    btnJWT: TButton;
     procedure FormShow(Sender: TObject);
     procedure btnChangeFontClick(Sender: TObject);
+    procedure btnJWTClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -26,7 +28,7 @@ var
 implementation
 
 uses
-  System.DateUtils,
+  System.DateUtils, chimera.json.jwt,
   chimera.json, chimera.json.helpers;
 
 
@@ -49,6 +51,37 @@ begin
 
   txtMsg.AsJSONObject.Objects['TextSettings'].Objects['Font'].Numbers['Size'] := 22;
   showmessage(txtMsg.TextSettings.Font.Size.ToString);
+end;
+
+procedure TForm1.btnJWTClick(Sender: TObject);
+var
+  jwt : TJWT;
+  s224, s256, s384, s512 : string;
+begin
+  txtMsg.Lines.Clear;
+
+  jwt.Initialize;
+  jwt.Payload.sub := 'validation';
+  jwt.Payload.iss := 'Chimera Test';
+  jwt.Payload.exp := EncodeDate(2019,1,1);
+  jwt.Payload.iat := EncodeDate(2016,1,1);
+  jwt.Payload.aud := 'end users';
+  s224 := jwt.SignHS224('secret');
+  txtMsg.Lines.Add('HS224: '+s224);
+  txtMsg.Lines.Add('Valid? '+BoolToStr(jwt.TryValidate(s224,'secret', JWT), true));
+  txtMsg.Lines.Add('');
+  s256 := jwt.SignHS256('secret');
+  txtMsg.Lines.Add('HS256: '+s256);
+  txtMsg.Lines.Add('Valid? '+BoolToStr(jwt.TryValidate(s256,'secret', JWT), true));
+  txtMsg.Lines.Add('');
+  s384 := jwt.SignHS384('secret');
+  txtMsg.Lines.Add('HS384: '+s384);
+  txtMsg.Lines.Add('Valid? '+BoolToStr(jwt.TryValidate(s384,'secret', JWT), true));
+  txtMsg.Lines.Add('');
+  s512 := jwt.SignHS512('secret');
+  txtMsg.Lines.Add('HS512: '+s512);
+  txtMsg.Lines.Add('Valid? '+BoolToStr(jwt.TryValidate(s512,'secret', JWT), true));
+  txtMsg.Lines.Add('');
 end;
 
 procedure TForm1.FormShow(Sender: TObject);
