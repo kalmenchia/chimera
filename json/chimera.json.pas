@@ -33,7 +33,7 @@ unit chimera.json;
 
 interface
 
-uses System.SysUtils, System.Classes;
+uses System.SysUtils, System.Classes, System.JSON;
 
 type
 {$SCOPEDENUMS ON}
@@ -146,6 +146,7 @@ type
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     procedure AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    function CreateRTLArray : System.JSON.TJSONArray;
 
     procedure Each(proc : TProcConst<string>); overload;
     procedure Each(proc : TProcConst<double>); overload;
@@ -225,9 +226,12 @@ type
     procedure Remove(const name : string);
     procedure AddNull(const name : string);
     procedure AddCode(const name : string; const value : string);
+
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     procedure AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    function CreateRTLObject : System.JSON.TJSONObject;
+
     procedure Reload(const Source : string);
     procedure Clear;
     property OnChange : TChangeObjectHandler read GetOnChange write SetOnChange;
@@ -351,9 +355,12 @@ type
     procedure Add(const value : Variant); overload;
     procedure AddNull;
     procedure AddCode(const value : string);
+
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     procedure AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    function CreateRTLArray: System.JSON.TJSONArray;
+
     procedure Delete(const idx: Integer);
     procedure Clear;
 
@@ -390,9 +397,7 @@ type
     property Items[const idx : integer] : Variant read GetItem write SetItem; default;
     property Types[const idx : integer] : TJSONValueType read GetType write SetType;
     property Count : integer read GetCount write SetCount;
-  public
-    //constructor Create(Parent : IJSONObject); overload; virtual;
-    //constructor Create(Parent : IJSONArray); overload; virtual;
+
     constructor Create; overload; virtual;
     destructor Destroy; override;
   end;
@@ -463,9 +468,12 @@ type
     procedure Add(const name : string; const value : Variant); overload;
     procedure AddNull(const name : string);
     procedure AddCode(const name : string; const value : string);
+
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     procedure AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    function CreateRTLObject: System.JSON.TJSONObject;
+
     procedure Remove(const name: string);
     function LoadFromStream(Stream : TStream) : IJSONObject;
     function LoadFromFile(Filename : string) : IJSONObject;
@@ -494,7 +502,7 @@ type
     property Count : integer read GetCount;
     property Names[const idx : integer] : string read GetName;
     property Has[const name : string] : boolean read GetHas;
-  public
+
     constructor Create; overload; virtual;
     destructor Destroy; override;
   end;
@@ -880,6 +888,11 @@ constructor TJSONArray.Create;
 begin
   inherited Create;
   FValues := TList<PMultiValue>.Create;
+end;
+
+function TJSONArray.CreateRTLArray: System.JSON.TJSONArray;
+begin
+  Result := System.JSON.TJSONArray(System.JSON.TJSONObject.ParseJSONValue(TEncoding.UTF8.GetBytes(AsJSON),0));
 end;
 
 destructor TJSONArray.Destroy;
@@ -1642,6 +1655,11 @@ begin
   inherited Create;
   FValues := TDictionary<string, PMultiValue>.Create;
   FValues.OnValueNotify := DisposeOfValue;
+end;
+
+function TJSONObject.CreateRTLObject: System.JSON.TJSONObject;
+begin
+  Result := System.JSON.TJSONObject(System.JSON.TJSONObject.ParseJSONValue(TEncoding.UTF8.GetBytes(AsJSON),0));
 end;
 
 destructor TJSONObject.Destroy;
