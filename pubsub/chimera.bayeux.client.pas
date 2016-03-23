@@ -34,7 +34,7 @@ unit chimera.bayeux.client;
 interface
 
 uses System.SysUtils, System.Classes, System.Generics.Collections, chimera.json,
-  System.Threading, chimera.utility.http, IdURI, IdCookieManager;
+  System.Threading, IdHTTP, IdURI, IdCookieManager;
 
 type
   TRetryMode = (retry, handshake, none);
@@ -139,7 +139,6 @@ begin
   begin
     FListener.Terminate;
     Sleep(10);
-    TerminateThread(FListener);
   end;
 
   FDispatcher.Free;
@@ -537,7 +536,7 @@ begin
   http := TIdHTTP.Create(nil);
   try
     FOwner.SetupHTTP(http);
-    http.OnChunkReceived := OnChunkReceived;
+    //http.OnChunkReceived := OnChunkReceived;
     if FOwner.Handshake(http) then
     begin
       http.Request.Connection := 'keep-alive';
