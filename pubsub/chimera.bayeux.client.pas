@@ -138,12 +138,8 @@ begin
   if Assigned(FListener) then
   begin
     FListener.Terminate;
-<<<<<<< Updated upstream
-    Sleep(10);
-=======
     Sleep(500);
     FreeAndNil(FListener);
->>>>>>> Stashed changes
   end;
 
   FDispatcher.Free;
