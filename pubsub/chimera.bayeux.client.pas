@@ -138,7 +138,12 @@ begin
   if Assigned(FListener) then
   begin
     FListener.Terminate;
+<<<<<<< Updated upstream
     Sleep(10);
+=======
+    Sleep(500);
+    FreeAndNil(FListener);
+>>>>>>> Stashed changes
   end;
 
   FDispatcher.Free;
@@ -531,7 +536,6 @@ procedure TListenerThread.Execute;
 var
   http : TIdHTTP;
   sUser, sPass : string;
-  ssSource, ssResponse : TStringStream;
 begin
   http := TIdHTTP.Create(nil);
   try
