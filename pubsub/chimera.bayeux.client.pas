@@ -39,6 +39,7 @@ uses System.SysUtils, System.Classes, System.Generics.Collections, chimera.json,
 type
   TRetryMode = (retry, handshake, none);
   TMessageHandler = reference to procedure(const Msg : IJSONObject);
+  TStringHandler = reference to procedure(const Msg : string);
   TAuthenticateHandler = reference to procedure(var Username : String; var Password : string; var Authenticate : boolean);
   TBayeuxClient = class(TInterfacedObject)
   private const
@@ -54,10 +55,10 @@ type
     FMessageID : Int64;
     FDispatcher : TDictionary<string, TMessageHandler>;
     FCookieManager : TIdCookieManager;
-  private
     FRetryMode : TRetryMode;
     FVersion: string;
     FSupportedConnectionTypes: string;
+    FRetry : Cardinal;
     FTimeout: Int64;
     FAlternativeHosts: IJSONArray;
     FMultipleClients: Boolean;
@@ -69,12 +70,14 @@ type
     FOnHandshakeComplete: TProc;
     FOnLogMessage: TMessageHandler;
     FOnLogResponse: TMessageHandler;
-    function Handshake(http : TIdHTTP) : boolean;
+    FOnLogVerbose: TStringHandler;
     function DoAuthenticate(var Username : string; var Password : string) : boolean;
+    procedure DoHandshake;
+  private
     procedure SetupHTTP(http : TIdHTTP);
+    function Handshake(http : TIdHTTP) : boolean;
     procedure SynchronizeCookies(http : TIdHTTP);
     procedure ProcessResponseObject(const obj : IJSONObject);
-    procedure DoHandshake;
   protected
     procedure StartListener(const OnReady : TProc = nil); virtual;
     function GenerateRandomID : string; virtual;
@@ -95,9 +98,11 @@ type
     property OnAuthenticate : TAuthenticateHandler read FOnAuthenticate write FOnAuthenticate;
     property OnUnsuccessful : TMessageHandler read FOnUnsuccessful write FOnUnsuccessful;
     property CookieManager : TIdCookieManager read FCookieManager;
+    property OnLogVerbose : TStringHandler read FOnLogVerbose write FOnLogVerbose;
     property ClientID : string read FClientID;
     property Extension : IJSONObject read FExtension;
     property Interval : Cardinal read FInterval write FInterval;
+    property Retry : Cardinal read FRetry write FRetry;
   end;
 
 implementation
@@ -122,6 +127,8 @@ constructor TBayeuxClient.Create(const Endpoint: string; DeferConnect : boolean 
       const OnLogResponse : TMessageHandler = nil);
 begin
   inherited Create;
+  FInterval := 0;
+  FRetry := 5;
   FMessageID := 0;
   FDispatcher := TDictionary<string, TMessageHandler>.Create;
   FEndpoint := TIdURI.Create(Endpoint);
@@ -197,6 +204,23 @@ function TBayeuxClient.DoSendMessage(http: TIdHTTP; const Msg: IJSONObject) : IJ
       end
     );
   end;
+  function WaitforRetry: boolean;
+  var
+    i : integer;
+  begin
+    Result := True;
+    for i := Retry*100 downto 0 do
+    begin
+      if TListenerThread(TThread.Current).Terminated then
+      begin
+        Result := False;
+        Abort;
+      end;
+      sleep(10);
+    end;
+    if TListenerThread(TThread.Current).Terminated then
+      Abort;
+  end;
 var
   ssSource, ssResponse : TStringStream;
   c: Char;
@@ -208,7 +232,26 @@ begin
     ssSource := TStringStream.Create(msg.AsJSON, TEncoding.UTF8);
     ssResponse := TStringStream.Create('',TEncoding.UTF8);
     try
-      http.post(FEndpoint.URI, ssSource, ssResponse);
+      try
+        http.post(FEndpoint.URI, ssSource, ssResponse);
+      except
+        on e: exception do
+        begin
+          if Assigned(FOnLogVerbose) then
+            FOnLogVerbose('HTTP Error "'+e.Message+'" waiting for Retry.');
+          ssSource.Size := 0;  // TODO: to keep incremental memory growth we might want to freeandnil this instead;
+          ssResponse.Size := 0;
+          try
+            WaitForRetry;
+          except
+            on e: EAbort do
+              exit;
+          end;
+          
+          Result := DoSendMessage(http, Msg);
+          exit;
+        end;
+      end;
       if (ssResponse.Size > 0) then
       begin
         c := ssResponse.DataString.Chars[0];
@@ -260,7 +303,10 @@ begin
   if jso <> nil then
     Result := jso.Booleans['successful']
   else
+  begin
     Result := false;
+    exit;
+  end;
   if Result then
   begin
     if Assigned(FOnHandshakeComplete) then
@@ -298,6 +344,9 @@ procedure TBayeuxClient.ProcessResponseObject(const obj: IJSONObject);
 
     if advice.Has['interval'] then
       FInterval := advice.Integers['interval'];
+
+    if advice.Has['retry'] then
+      FRetry := advice.Integers['retry'];
 
     if advice.Has['multiple-clients'] then
       FMultipleClients := advice.Booleans['multiple-clients'];
@@ -492,7 +541,7 @@ constructor TListenerThread.Create(Owner : TBayeuxClient; OnReady : TProc) ;
 begin
   inherited Create(False);
   FOwner := Owner;
-  FreeOnTerminate := True;
+  FreeOnTerminate := False;
   FOnReady := OnReady;
 end;
 
@@ -506,7 +555,6 @@ procedure TListenerThread.Execute;
     begin
       if Terminated then
       begin
-        Result := False;
         exit;
       end;
       sleep(10);
