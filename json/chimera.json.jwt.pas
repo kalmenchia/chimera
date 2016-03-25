@@ -84,9 +84,22 @@ implementation
 
 uses System.NetEncoding, System.Hash;
 
+function Base64Decode(Data : string) : string; inline;
+var
+  i: Integer;
+begin
+  for i := 0 to Data.Length-1 do
+    case Data.chars[i] of
+      '_': Data[i+1] := '/';
+      '+': Data[i+1] := '-';
+    end;
+  Result := TNetEncoding.Base64.Decode(Data);
+end;
+
 function Base64EncodeAsUTF8(const Data : string) : string; inline;
 var
   enc : TBase64Encoding;
+  i: Integer;
 begin
   enc := TBase64Encoding.Create(High(Cardinal));
   try
@@ -94,11 +107,18 @@ begin
   finally
     enc.Free;
   end;
+  for i := 0 to Result.length-1 do
+    case result.chars[i] of
+      '/': result[i+1] := '_';
+      '+': result[i+1] := '-';
+    end;
+  result := result.Split(['='])[0];
 end;
 
 function Base64EncodeAsBytes(const Data : TArray<Byte>) : string;
 var
   enc : TBase64Encoding;
+  i: Integer;
 begin
   enc := TBase64Encoding.Create(High(Cardinal));
   try
@@ -106,6 +126,12 @@ begin
   finally
     enc.Free;
   end;
+  for i := 0 to Result.length-1 do
+    case result.chars[i] of
+      '/': result[i+1] := '_';
+      '+': result[i+1] := '-';
+    end;
+  result := result.Split(['='])[0];
 end;
 
 function ValidateHeader(const jso : IJSONObject) : IJSONObject; inline;
@@ -142,7 +168,7 @@ begin
     ary := SplitJWT(JWT, 2);
     Self.Initialize;
     Self.Header.Alg := 'NONE';
-    Self.Payload.Data := JSON(TNetEncoding.Base64.Decode(ary[1]));
+    Self.Payload.Data := JSON(Base64Decode(ary[1]));
   end;
   Result := Self;
 end;
@@ -182,7 +208,7 @@ var
   sAlg : string;
 begin
   ary := SplitJWT(JWT, 3);
-  sAlg := ValidateHeader(JSON(TNetEncoding.Base64.Decode(ary[0]))).Strings['alg'];
+  sAlg := ValidateHeader(JSON(Base64Decode(ary[0]))).Strings['alg'];
 
   if sAlg = 'HS256' then
     Result := TryValidateHS256(JWT, Secret, jwtResult)
