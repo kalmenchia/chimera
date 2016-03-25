@@ -34,7 +34,7 @@ unit chimera.bayeux.client;
 interface
 
 uses System.SysUtils, System.Classes, System.Generics.Collections, chimera.json,
-  System.Threading, IdHTTP, IdURI, IdCookieManager;
+  System.Threading, System.Net.HTTPClient, System.Net.URLClient, System.SyncObjs;
 
 type
   TRetryMode = (retry, handshake, none);
@@ -49,12 +49,13 @@ type
     META_UNSUBSCRIBE = '/meta/unsubscribe';
     META_DISCONNECT  = '/meta/disconnect';
   strict private
-    FEndpoint: TIdURI;
+    FEndpoint: TURI;
+    FClientIDCS : TMultiReadExclusiveWriteSynchronizer;
     FClientID : string;
     FListener : TThread;
     FMessageID : Int64;
     FDispatcher : TDictionary<string, TMessageHandler>;
-    FCookieManager : TIdCookieManager;
+    FCookieManager : TCookieManager;
     FRetryMode : TRetryMode;
     FVersion: string;
     FSupportedConnectionTypes: string;
@@ -73,21 +74,28 @@ type
     FOnLogVerbose: TStringHandler;
     function DoAuthenticate(var Username : string; var Password : string) : boolean;
     procedure DoHandshake;
+    procedure AuthCallback(const Sender: TObject; AnAuthTarget: TAuthTargetType;
+      const ARealm, AURL: string; var AUserName, APassword: string; var AbortAuth: Boolean;
+      var Persistence: TAuthPersistenceType);
   private
-    procedure SetupHTTP(http : TIdHTTP);
-    function Handshake(http : TIdHTTP) : boolean;
-    procedure SynchronizeCookies(http : TIdHTTP);
+    procedure SetupHTTP(http : THTTPClient);
+    function Handshake(http : THTTPClient) : boolean;
+    procedure SynchronizeCookies(http : THTTPClient);
     procedure ProcessResponseObject(const obj : IJSONObject);
-  protected
+    function GetClientID: string;
+
+    procedure SetClientID(const Value: string);
+    procedure DoLogVerbose(const Msg: string);
+    procedure DoOnUnsuccessful(const obj: IJSONObject);  protected
     procedure StartListener(const OnReady : TProc = nil); virtual;
     function GenerateRandomID : string; virtual;
-    function DoSendMessage(http : TIdHTTP; const Msg : IJSONObject) : IJSONObject; virtual;
+    function DoSendMessage(http : THTTPClient; const Msg : IJSONObject) : IJSONObject; virtual;
     procedure SendMessage(const Msg : IJSONObject); virtual;
     function NextID : string; virtual;
   public
     constructor Create(const Endpoint : string; DeferConnect : boolean = false;
       const OnHandshakeComplete : TProc = nil; const OnLogMessage : TMessageHandler = nil;
-      const OnLogResponse : TMessageHandler = nil);
+      const OnLogResponse : TMessageHandler = nil; const InitialClientID : string = '');
     destructor Destroy; override;
 
     procedure Subscribe(const Channel : string; const OnMessage : TMessageHandler);
@@ -97,17 +105,17 @@ type
     property OnLogResponse : TMessageHandler read FOnLogResponse write FOnLogResponse;
     property OnAuthenticate : TAuthenticateHandler read FOnAuthenticate write FOnAuthenticate;
     property OnUnsuccessful : TMessageHandler read FOnUnsuccessful write FOnUnsuccessful;
-    property CookieManager : TIdCookieManager read FCookieManager;
+    property CookieManager : TCookieManager read FCookieManager;
     property OnLogVerbose : TStringHandler read FOnLogVerbose write FOnLogVerbose;
-    property ClientID : string read FClientID;
     property Extension : IJSONObject read FExtension;
     property Interval : Cardinal read FInterval write FInterval;
     property Retry : Cardinal read FRetry write FRetry;
+    property ClientID : string read GetClientID write SetClientID;
   end;
 
 implementation
 
-uses System.Hash, IdSSLOpenSSL, System.SyncObjs, chimera.utility;
+uses System.Hash;
 
 type
   TListenerThread = class(TThread)
@@ -122,20 +130,39 @@ type
 
 { TBayeuxClient }
 
+procedure TBayeuxClient.AuthCallback(const Sender: TObject;
+  AnAuthTarget: TAuthTargetType; const ARealm, AURL: string; var AUserName,
+  APassword: string; var AbortAuth: Boolean;
+  var Persistence: TAuthPersistenceType);
+var
+  sUser, sPass : String;
+begin
+  if DoAuthenticate(sUser, sPass) then
+  begin
+    AbortAuth := False;
+    AUsername := sUser;
+    APassword := sPass;
+    Persistence := TAuthPersistenceType.Client;
+  end;
+end;
+
 constructor TBayeuxClient.Create(const Endpoint: string; DeferConnect : boolean = false;
       const OnHandshakeComplete : TProc = nil; const OnLogMessage : TMessageHandler = nil;
-      const OnLogResponse : TMessageHandler = nil);
+      const OnLogResponse : TMessageHandler = nil; const InitialClientID : string  = '');
 begin
   inherited Create;
+  FClientIDCS := TMultiReadExclusiveWriteSynchronizer.Create;
+  FCookieManager := TCookieManager.Create;
   FInterval := 0;
   FRetry := 5;
   FMessageID := 0;
   FDispatcher := TDictionary<string, TMessageHandler>.Create;
-  FEndpoint := TIdURI.Create(Endpoint);
+  FEndpoint := TURI.Create(Endpoint);
   FDeferConnect := DeferConnect;
   FOnHandshakeComplete := OnHandshakeComplete;
   FOnLogMessage := OnLogMessage;
   FOnLogResponse := OnLogResponse;
+  FClientID := InitialClientID;
   if not FDeferConnect then
     StartListener;
 end;
@@ -149,8 +176,9 @@ begin
     FreeAndNil(FListener);
   end;
 
+  FClientIDCS.Free;
   FDispatcher.Free;
-  FEndpoint.Free;
+  FCookieManager.Free;
   inherited;
 end;
 
@@ -166,9 +194,9 @@ begin
   TThread.CreateAnonymousThread(
     procedure
     var
-      http : TIdHTTP;
+      http : THTTPClient;
     begin
-      http := TIdHTTP.Create(nil);
+      http := THTTPClient.Create;
       try
         SetupHTTP(http);
 
@@ -176,13 +204,21 @@ begin
 
         SynchronizeCookies(http);
       finally
+        if Assigned(http.CookieManager) then
+          http.CookieManager.Free;
         http.Free;
       end;
     end
   ).Start;
 end;
 
-function TBayeuxClient.DoSendMessage(http: TIdHTTP; const Msg: IJSONObject) : IJSONObject;
+procedure TBayeuxClient.DoLogVerbose(const Msg : string);
+begin
+  if Assigned(FOnLogVerbose) then
+    FOnLogVerbose('Invalid Response: ' + Msg);
+end;
+
+function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) : IJSONObject;
   function ProcessAsObject(ss : TStringStream) : IJSONObject;
   begin
     Result := JSON(ss.DataString);
@@ -233,12 +269,11 @@ begin
     ssResponse := TStringStream.Create('',TEncoding.UTF8);
     try
       try
-        http.post(FEndpoint.URI, ssSource, ssResponse);
+        http.post(FEndpoint.ToString, ssSource, ssResponse);
       except
         on e: exception do
         begin
-          if Assigned(FOnLogVerbose) then
-            FOnLogVerbose('HTTP Error "'+e.Message+'" waiting for Retry.');
+          DoLogVerbose('HTTP Error "'+e.Message+'" waiting for Retry.');
           ssSource.Size := 0;  // TODO: to keep incremental memory growth we might want to freeandnil this instead;
           ssResponse.Size := 0;
           try
@@ -247,7 +282,7 @@ begin
             on e: EAbort do
               exit;
           end;
-          
+
           Result := DoSendMessage(http, Msg);
           exit;
         end;
@@ -258,6 +293,11 @@ begin
         case c of
           '[' : Result := ProcessAsArray(ssResponse);
           '{' : Result := ProcessAsObject(ssResponse);
+          else
+          begin
+            result := nil;
+            DoLogVerbose(ssResponse.Datastring);
+          end;
         end;
       end else
         Result := nil;
@@ -289,10 +329,26 @@ begin
   Result := THashSHA1.GetHMAC(GuidToString(g),sDate);
 end;
 
-function TBayeuxClient.Handshake(http: TIdHTTP) : boolean;
+function TBayeuxClient.GetClientID: string;
+begin
+  FClientIDCS.BeginRead;
+  try
+    Result := FClientID;
+  finally
+    FClientIDCS.EndRead;
+  end;
+end;
+
+function TBayeuxClient.Handshake(http: THTTPClient) : boolean;
 var
   jso : IJSONObject;
 begin
+  if ClientID <> '' then
+  begin
+    result := True;
+    exit;
+  end;
+
   jso := JSON;
   jso.Strings['channel'] := META_HANDSHAKE;
   jso.Strings['version'] := '1.0';
@@ -304,15 +360,19 @@ begin
     Result := jso.Booleans['successful']
   else
   begin
-    Result := false;
-    exit;
+    raise Exception.Create('Invalid Response from Server.');
+
   end;
   if Result then
   begin
+    DoLogVerbose('Handshake Complete');
     if Assigned(FOnHandshakeComplete) then
-      FOnHandshakeComplete()
+      FOnHandshakeComplete();
   end else
+  begin
+    DoLogVerbose('Handshake Failed');
     FOnUnsuccessful(jso);
+  end;
 end;
 
 function TBayeuxClient.NextID: string;
@@ -321,6 +381,27 @@ var
 begin
   id := TInterlocked.Increment(FMessageID);
   Result := id.ToString.PadLeft(32,'0');
+end;
+
+procedure TBayeuxClient.DoOnUnsuccessful(const obj: IJSONObject);
+var
+  iErrorCode : integer;
+begin
+  if obj.Has['error'] and TryStrToInt(obj.Strings['error'].Substring(0,3),iErrorCode) then
+  begin
+        case iErrorCode of
+          401:
+          begin
+            DoLogVerbose('Connection Error: Unknown Client ID, Trying another Handshake.');
+            FClientID := '';
+          end else
+           DoLogVerbose(obj.Strings['error']);
+        end;
+
+      end;
+
+  if Assigned(FOnUnsuccessful) then
+    FOnUnsuccessful(obj);
 end;
 
 procedure TBayeuxClient.ProcessResponseObject(const obj: IJSONObject);
@@ -366,7 +447,7 @@ begin
       begin
         FVersion := obj.Strings['version'];
         FSupportedConnectionTypes := obj.Strings['supportedConnectionTypes'];
-        FClientID := obj.Strings['clientId'];
+        ClientID := obj.Strings['clientId'];
         if obj.Has['advice'] then
           processAdvice(obj.Objects['advice']);
       end else if sChannel = META_CONNECT then
@@ -396,10 +477,10 @@ begin
           FDispatcher.Remove(obj.Strings['subscription']);
         end
       );
-      if Assigned(FOnUnsuccessful) then
-        FOnUnsuccessful(obj);
-    end else if Assigned(FOnUnsuccessful) then
-      FOnUnsuccessful(obj);
+
+      DoOnUnsuccessful(obj);
+   end else
+     DoOnUnsuccessful(obj);
   end else
   begin
     if obj.Has['channel'] and obj.Has['data'] then
@@ -421,8 +502,8 @@ begin
   jso := JSON;
   jso.Strings['channel'] := Channel;
   jso.Objects['data'] := Msg;
-  if FClientID <> '' then
-    jso.Strings['clientId'] := FClientID;
+  if ClientID <> '' then
+    jso.Strings['clientId'] := ClientID;
   jso.Strings['id'] := NextID;
   if Assigned(FExtension)  then
     jso.Objects['ext'] := FExtension;
@@ -434,9 +515,9 @@ begin
   TThread.CreateAnonymousThread(
     procedure
     var
-      http : TIdHTTP;
+      http : THTTPClient;
     begin
-      http := TIdHTTP.Create(nil);
+      http := THTTPClient.Create;
       try
         SetupHTTP(http);
 
@@ -450,26 +531,34 @@ begin
   ).Start;
 end;
 
-procedure TBayeuxClient.SetupHTTP(http: TIdHTTP);
-var
-  sUser, sPass : String;
+procedure TBayeuxClient.SetClientID(const Value: string);
+begin
+  if FClientIDCS.BeginWrite then
+    try
+      FClientID := Value;
+    finally
+      FClientIDCS.EndWrite;
+    end
+  else
+    raise Exception.Create('Could not set ClientID');
+end;
+
+procedure TBayeuxClient.SetupHTTP(http: THTTPClient);
 begin
   http.AllowCookies := True;
-  http.CookieManager := TIdCookieManager.Create(http);
+  http.CookieManager := TCookieManager.Create;
   http.HandleRedirects := True;
-  http.ProtocolVersion := TIdHTTPProtocolVersion.pv1_1;
-  http.Request.ContentType := 'application/json';
-  if DoAuthenticate(sUser, sPass) then
-  begin
-    http.Request.Username := sUser;
-    http.Request.Password := sPass;
-  end;
-  http.Request.UserAgent := 'Chimera Bayeux Client';
-  http.IOHandler := TIdSSLIOHandlerSocketOpenSSL.Create(http);
+  //http.ProtocolVersion := TIdHTTPProtocolVersion.pv1_1;
+  http.ContentType := 'application/json';
+  http.AuthEvent := Self.AuthCallback;
+  http.UserAgent := 'Chimera Bayeux Client';
   TThread.Synchronize(TThread.Current,
     procedure
+    var
+      cookie : TCookie;
     begin
-      http.CookieManager.AddCookies(FCookieManager);
+      for cookie in FCookieManager.Cookies do
+        http.CookieManager.AddServerCookie(cookie.ToString, '.');
     end
   );
 
@@ -494,7 +583,7 @@ begin
       jso : IJSONObject;
     begin
       jso := JSON;
-      jso.Strings['clientId'] := FClientID;
+      jso.Strings['clientId'] := ClientID;
       jso.Strings['channel'] := META_SUBSCRIBE;
       jso.Strings['subscription'] := Channel;
       if Assigned(FExtension) then
@@ -505,14 +594,19 @@ begin
   );
 end;
 
-procedure TBayeuxClient.SynchronizeCookies(http: TIdHTTP);
+procedure TBayeuxClient.SynchronizeCookies(http: THTTPClient);
 begin
-{  TThread.Synchronize(TThread.Current,
+  TThread.Synchronize(TThread.Current,
     procedure
+    var
+      cookie : TCookie;
     begin
-      FCookieManager.AddCookies(http.CookieManager);
+      for cookie in http.CookieManager.Cookies do
+      begin
+        FCookieManager.AddServerCookie(cookie.ToString, '.');
+      end;
     end
-  );}
+  );
 end;
 
 procedure TBayeuxClient.Unsubscribe(const Channel: string);
@@ -523,7 +617,7 @@ begin
       jso : IJSONObject;
     begin
       jso := JSON;
-      jso.Strings['clientId'] := FClientID;
+      jso.Strings['clientId'] := ClientID;
       jso.Strings['channel'] := META_UNSUBSCRIBE;
       jso.Strings['subscription'] := Channel;
       if Assigned(FExtension) then
@@ -560,7 +654,7 @@ procedure TListenerThread.Execute;
       sleep(10);
     end;
   end;
-  function Connect(http : TIdHTTP) : boolean;
+  function Connect(http : THTTPClient) : boolean;
   var
     jso : IJSONObject;
   begin
@@ -573,22 +667,33 @@ procedure TListenerThread.Execute;
     jso.Strings['id'] := FOwner.NextID;
     jso := FOwner.DoSendMessage(http, jso);
     if jso <> nil then
-      Result := jso.Booleans['successful']
-    else
-      Result := true;
+    begin
+      Result := jso.Booleans['successful'];
+      if not Result and (FOwner.ClientID = '') then
+        if FOwner.Handshake(http) then
+        begin
+          Result := Connect(http);
+          if Result then
+            exit;
+        end;
+    end else
+    begin
+      Result := false;
+    end;
   end;
 var
-  http : TIdHTTP;
+  http : THTTPClient;
   sUser, sPass : string;
 begin
-  http := TIdHTTP.Create(nil);
+  http := THTTPClient.Create;
   try
     FOwner.SetupHTTP(http);
     //http.OnChunkReceived := OnChunkReceived;
     if FOwner.Handshake(http) then
     begin
-      http.Request.Connection := 'keep-alive';
-      http.Request.TransferEncoding := 'chunked';
+      http.CustomHeaders['Keep-Alive'] := 'max';
+      //http.CustomHeaders['Connection'] := 'close';
+      //http.TransferEncoding := 'chunked';
       repeat
         if Connect(http) then
         begin
@@ -605,6 +710,8 @@ begin
 
     end;
   finally
+    if assigned(http.CookieManager) then
+      http.CookieManager.Free;
     http.Free;
   end;
 end;
