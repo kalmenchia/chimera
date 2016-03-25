@@ -23,6 +23,9 @@ object Form2: TForm2
     TabIndex = 0
     TabOrder = 1
     TabPosition = PlatformDefault
+    Sizes = (
+      632s
+      446s)
     object TabItem1: TTabItem
       CustomIcon = <
         item
@@ -37,12 +40,12 @@ object Form2: TForm2
       ExplicitSize.cx = 93.000000000000000000
       ExplicitSize.cy = 26.000000000000000000
       object btnConnect: TButton
-        Position.X = 564.000000000000000000
+        Position.X = 496.000000000000000000
         Position.Y = 16.000000000000000000
         Size.Width = 56.000000000000000000
         Size.Height = 22.000000000000000000
         Size.PlatformDefault = False
-        TabOrder = 0
+        TabOrder = 1
         Text = 'Connect'
         OnClick = btnConnectClick
       end
@@ -54,24 +57,24 @@ object Form2: TForm2
         Size.Width = 56.000000000000000000
         Size.Height = 22.000000000000000000
         Size.PlatformDefault = False
-        TabOrder = 1
+        TabOrder = 2
         Text = 'Send'
         OnClick = btnSendClick
       end
       object txtHost: TEdit
         Touch.InteractiveGestures = [LongTap, DoubleTap]
-        TabOrder = 2
+        TabOrder = 3
         Text = 'http://127.0.0.1:9292'
         Position.X = 160.000000000000000000
         Position.Y = 16.000000000000000000
-        Size.Width = 393.000000000000000000
+        Size.Width = 329.000000000000000000
         Size.Height = 22.000000000000000000
         Size.PlatformDefault = False
         TextPrompt = 'Server'
       end
       object txtMessage: TEdit
         Touch.InteractiveGestures = [LongTap, DoubleTap]
-        TabOrder = 3
+        TabOrder = 4
         Position.X = 16.000000000000000000
         Position.Y = 44.000000000000000000
         Enabled = False
@@ -83,7 +86,7 @@ object Form2: TForm2
       end
       object txtUsername: TEdit
         Touch.InteractiveGestures = [LongTap, DoubleTap]
-        TabOrder = 4
+        TabOrder = 5
         Position.X = 16.000000000000000000
         Position.Y = 16.000000000000000000
         Size.Width = 137.000000000000000000
@@ -97,6 +100,16 @@ object Form2: TForm2
         Size.PlatformDefault = False
         Position.X = 16.000000000000000000
         Position.Y = 72.000000000000000000
+      end
+      object btnDisconnect: TButton
+        Position.X = 564.000000000000000000
+        Position.Y = 16.000000000000000000
+        Size.Width = 56.000000000000000000
+        Size.Height = 22.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        Text = 'Disconnect'
+        OnClick = btnDisconnectClick
       end
     end
   end

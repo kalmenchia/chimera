@@ -18,12 +18,14 @@ type
     btnConnect: TButton;
     TabControl1: TTabControl;
     TabItem1: TTabItem;
+    btnDisconnect: TButton;
     procedure FormCreate(Sender: TObject);
     procedure btnConnectClick(Sender: TObject);
     procedure btnSendClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure txtMessageKeyUp(Sender: TObject; var Key: Word; var KeyChar: Char;
       Shift: TShiftState);
+    procedure btnDisconnectClick(Sender: TObject);
   private
     FPubSub : TBayeuxClient;
     FMessages : TStringList;
@@ -47,7 +49,7 @@ var
   sl : TStringList;
   sPage : string;
 begin
-  TThread.Queue(TThread.Current,
+  TThread.Synchronize(TThread.Current,
     procedure
       function TimeString(timestamp : TDateTime) : string;
       begin
@@ -66,6 +68,7 @@ begin
         sl.Free;
       end;
       Web.LoadFromStrings(sPage, '/');
+      Application.ProcessMessages;
     end
   );
 end;
@@ -84,11 +87,6 @@ begin
   FPubsub := TBayeuxClient.Create(txtHost.Text, False,
     procedure
     begin
-      FPubsub.OnUnsuccessful :=
-        procedure(const msg : IJSONObject)
-        begin
-          AddErrorMessage(msg.Strings['error']);
-        end;
       FPubsub.Subscribe('/chatdemo',
         procedure(const msg : IJSONObject)
         begin
@@ -96,8 +94,28 @@ begin
         end
       );
       FPubsub.Publish('/chatdemo',NewMessage('system', 'User '+txtUsername.Text+' has connected.'));
-    end
+    end,nil,nil,'123'
   );
+  //FPubsub.ClientID := '1123';
+  FPubSub.OnLogVerbose :=
+    procedure(const msg : string)
+    begin
+      AddErrorMessage(msg);
+    end;
+  FPubsub.OnUnsuccessful :=
+    procedure(const msg : IJSONObject)
+    begin
+      AddErrorMessage(msg.Strings['error']);
+    end;
+end;
+
+procedure TForm2.btnDisconnectClick(Sender: TObject);
+begin
+  FreeAndNil(FPubsub);
+  txtUsername.Enabled := True;
+  txtHost.Enabled := True;
+  txtMessage.Enabled := False;
+  btnConnect.Enabled := True;
 end;
 
 procedure TForm2.btnSendClick(Sender: TObject);
