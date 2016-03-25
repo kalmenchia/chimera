@@ -710,8 +710,8 @@ begin
 
     end;
   finally
-    if assigned(http.CookieManager) then
-      http.CookieManager.Free;
+//    if assigned(http.CookieManager) then
+//      http.CookieManager.Free;
     http.Free;
   end;
 end;
