@@ -36,6 +36,7 @@ requires
 contains
   chimera.pubsub.common in 'chimera.pubsub.common.pas',
   chimera.pubsub.interfaces in 'chimera.pubsub.interfaces.pas',
-  chimera.pubsub in 'chimera.pubsub.pas';
+  chimera.pubsub in 'chimera.pubsub.pas',
+  chimera.bayeux.client in 'chimera.bayeux.client.pas';
 
 end.
