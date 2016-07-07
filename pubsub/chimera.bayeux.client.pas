@@ -371,7 +371,8 @@ begin
   end else
   begin
     DoLogVerbose('Handshake Failed');
-    FOnUnsuccessful(jso);
+    if Assigned(FOnUnsuccessful) then
+      FOnUnsuccessful(jso);
   end;
 end;
 
