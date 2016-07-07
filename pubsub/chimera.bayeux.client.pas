@@ -280,7 +280,14 @@ begin
             WaitForRetry;
           except
             on e: EAbort do
+            begin
+              jsoError := JSON();
+              jsoError.Booleans['successful'] := false;
+              jsoError.Strings['error'] := 'Process Aborted';
+              result := jsoError;
+
               exit;
+            end;
           end;
 
           Result := DoSendMessage(http, Msg);
