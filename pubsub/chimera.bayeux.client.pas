@@ -693,6 +693,7 @@ var
   http : THTTPClient;
   sUser, sPass : string;
 begin
+  NameThreadForDebugging('Bayeux Listener');
   http := THTTPClient.Create;
   try
     FOwner.SetupHTTP(http);
