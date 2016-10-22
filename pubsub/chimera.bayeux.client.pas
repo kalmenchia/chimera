@@ -470,7 +470,8 @@ begin
         TThread.Queue(TThread.Current,
           procedure
           begin
-            FDispatcher.Remove(obj.Strings['subscription']);
+            if FDispatcher.ContainsKey(obj.Strings['subscription']) then
+              FDispatcher.Remove(obj.Strings['subscription']);
           end
         );
       end else if sChannel = META_DISCONNECT then
@@ -482,7 +483,8 @@ begin
       TThread.Queue(TThread.Current,
         procedure
         begin
-          FDispatcher.Remove(obj.Strings['subscription']);
+          if FDispatcher.ContainsKey(obj.Strings['subscription']) then
+            FDispatcher.Remove(obj.Strings['subscription']);
         end
       );
 
@@ -496,7 +498,8 @@ begin
       TThread.Queue(TThread.Current,
         procedure
         begin
-          FDispatcher[obj.Strings['channel']](obj.Objects['data']);
+          if FDispatcher.ContainsKey(obj.Strings['channel']) then
+            FDispatcher[obj.Strings['channel']](obj.Objects['data']);
         end
       );
     end;
@@ -632,7 +635,8 @@ begin
         jso.Objects['ext'] := FExtension;
 
       SendMessage(jso);
-      FDispatcher.Remove(Channel);
+      if FDispatcher.ContainsKey(Channel) then
+        FDispatcher.Remove(Channel);
     end
   );
 end;
