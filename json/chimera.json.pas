@@ -654,7 +654,7 @@ begin
         #13: begin
           sb.append('\r');
         end;
-        else if Ord(str.Chars[i]) > 255 then
+        else if (Ord(str.Chars[i]) > 255) or (Ord(str.Chars[i]) < 32) then
         begin
           sb.append('\u'+IntToHex(Ord(str.Chars[i]),4));
         end else
