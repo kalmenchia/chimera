@@ -1056,8 +1056,13 @@ begin
 end;
 
 function TJSONArray.GetDate(const idx: Integer): TDateTime;
+var
+  TempDate: TDateTime;
 begin
-  Result := ISO8601ToDate(GetString(idx));
+  Result := 0.0;
+  if TryISO8601ToDate(GetString(idx),TempDate) then
+    Result := TempDate;
+//  Result := ISO8601ToDate(GetString(idx));
 end;
 
 function TJSONArray.GetNumber(const idx: integer): Double;
@@ -1084,8 +1089,13 @@ begin
 end;
 
 function TJSONArray.GetLocalDate(const idx: Integer): TDateTime;
+var
+  TempDate: TDateTime;
 begin
-  Result := ISO8601ToDate(GetString(idx),false);
+  Result := 0.0;
+  if TryISO8601ToDate(GetString(idx),TempDate,false) then
+    Result := TempDate;
+  //Result := ISO8601ToDate(GetString(idx),false);
 end;
 
 function TJSONArray.GetObject(const idx: integer): IJSONObject;
@@ -1823,8 +1833,13 @@ begin
 end;
 
 function TJSONObject.GetDate(const name: string): TDateTime;
+var
+  TempDate: TDateTime;
 begin
-  Result := ISO8601ToDate(GetString(name));
+  Result := 0.0;
+  if TryISO8601ToDate(GetString(name),TempDate) then
+    Result := TempDate;
+  //Result := ISO8601ToDate(GetString(name));
 end;
 
 function TJSONObject.GetHas(const name: string): boolean;
@@ -1855,8 +1870,13 @@ begin
 end;
 
 function TJSONObject.GetLocalDate(const name: string): TDateTime;
+var
+  TempDate: TDateTime;
 begin
-  Result := ISO8601ToDate(GetString(name),false);
+  Result := 0.0;
+  if TryISO8601ToDate(GetString(name),TempDate,false) then
+    Result := TempDate;
+//  Result := ISO8601ToDate(GetString(name),false);
 end;
 
 function TJSONObject.GetName(const idx: integer): string;
