@@ -40,6 +40,7 @@ type
   TRetryMode = (retry, handshake, none);
   TMessageHandler = reference to procedure(const Msg : IJSONObject);
   TStringHandler = reference to procedure(const Msg : string);
+  TClientIDHandler = reference to procedure(const OldID, NewID : string);
   TAuthenticateHandler = reference to procedure(var Username : String; var Password : string; var Authenticate : boolean);
   TBayeuxClient = class(TInterfacedObject)
   private const
@@ -72,6 +73,7 @@ type
     FOnLogMessage: TMessageHandler;
     FOnLogResponse: TMessageHandler;
     FOnLogVerbose: TStringHandler;
+    FOnClientIDChanged: TClientIDHandler;
     function DoAuthenticate(var Username : string; var Password : string) : boolean;
     procedure DoHandshake;
     procedure AuthCallback(const Sender: TObject; AnAuthTarget: TAuthTargetType;
@@ -105,6 +107,7 @@ type
     property OnLogResponse : TMessageHandler read FOnLogResponse write FOnLogResponse;
     property OnAuthenticate : TAuthenticateHandler read FOnAuthenticate write FOnAuthenticate;
     property OnUnsuccessful : TMessageHandler read FOnUnsuccessful write FOnUnsuccessful;
+    property OnClientIDChanged : TClientIDHandler read FOnClientIDChanged write FOnClientIDChanged;
     property CookieManager : TCookieManager read FCookieManager;
     property OnLogVerbose : TStringHandler read FOnLogVerbose write FOnLogVerbose;
     property Extension : IJSONObject read FExtension;
@@ -543,10 +546,17 @@ begin
 end;
 
 procedure TBayeuxClient.SetClientID(const Value: string);
+var
+  sOldID : string;
 begin
   if FClientIDCS.BeginWrite then
     try
-      FClientID := Value;
+      if FClientID <> Value then
+      begin
+        sOldID := FClientID;
+        FClientID := Value;
+        FOnClientIDChanged(sOldID, Value);
+      end;
     finally
       FClientIDCS.EndWrite;
     end
