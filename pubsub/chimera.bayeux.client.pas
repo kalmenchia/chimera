@@ -404,7 +404,7 @@ begin
           401:
           begin
             DoLogVerbose('Connection Error: Unknown Client ID, Trying another Handshake.');
-            FClientID := '';
+            ClientID := '';
           end else
            DoLogVerbose(obj.Strings['error']);
         end;
@@ -555,7 +555,8 @@ begin
       begin
         sOldID := FClientID;
         FClientID := Value;
-        FOnClientIDChanged(sOldID, Value);
+        if Assigned(FOnClientIDChanged) then
+          FOnClientIDChanged(sOldID, Value);
       end;
     finally
       FClientIDCS.EndWrite;
