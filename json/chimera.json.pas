@@ -543,6 +543,15 @@ begin
   end;
 end;
 
+function IsValidLocalDate(Value : TDateTime) : boolean;
+var
+  Bias: Integer;
+  TimeZone: TTimeZone;
+begin
+  TimeZone := TTimeZone.Local;
+  Result := Double(Value) + TimeZone.UtcOffset.TotalMilliseconds >= 0;
+end;
+
 function StringIsJSON(const str : string) : boolean;
 begin
   result := (str <> '') and (str[1] = '{') and (str[length(str)] = '}')
@@ -1488,7 +1497,10 @@ end;
 
 procedure TJSONArray.SetLocalDate(const idx: Integer; const Value: TDateTime);
 begin
-  SetString(idx, DateToISO8601(Value,false));
+  if IsValidLocalDate(Value) then
+    SetString(idx, DateToISO8601(Value,false))
+  else
+    SetString(idx, DateToISO8601(0,True));
 end;
 
 procedure TJSONArray.SetObject(const idx: integer; const Value: IJSONObject);
@@ -2055,7 +2067,10 @@ end;
 
 procedure TJSONObject.SetLocalDate(const name: string; const Value: TDateTime);
 begin
-  SetString(name, DateToISO8601(Value,false));
+  if IsValidLocalDate(Value) then
+    SetString(name, DateToISO8601(Value,false))
+  else
+    SetString(name, DateToISO8601(0,True));
 end;
 
 procedure TJSONObject.SetObject(const name: string; const Value: IJSONObject);
