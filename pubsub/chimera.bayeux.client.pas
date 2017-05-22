@@ -260,12 +260,12 @@ function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) 
     if TListenerThread(TThread.Current).Terminated then
       Abort;
   end;
-var
-  ssSource, ssResponse : TStringStream;
-  c: Char;
-  jsoError : IJSONObject;
 
   function DoSend: IJSONObject;
+  var
+    ssSource, ssResponse : TStringStream;
+    c: Char;
+    jsoError : IJSONObject;
   begin
     try
       ssSource := TStringStream.Create(msg.AsJSON, TEncoding.UTF8);
@@ -294,7 +294,7 @@ var
             end;
 
             Result := DoSend;
-           // exit;
+            exit;
           end;
         end;
         if (ssResponse.Size > 0) then
