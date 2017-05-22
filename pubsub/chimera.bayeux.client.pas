@@ -264,67 +264,73 @@ var
   ssSource, ssResponse : TStringStream;
   c: Char;
   jsoError : IJSONObject;
+
+  function DoSend: IJSONObject;
+  begin
+    try
+      ssSource := TStringStream.Create(msg.AsJSON, TEncoding.UTF8);
+      ssResponse := TStringStream.Create('',TEncoding.UTF8);
+      try
+        try
+          http.post(FEndpoint.ToString, ssSource, ssResponse);
+        except
+          on e: exception do
+          begin
+            DoLogVerbose('HTTP Error "'+e.Message+'" waiting for Retry.');
+            ssSource.Size := 0;  // TODO: to keep incremental memory growth we might want to freeandnil this instead;
+            ssResponse.Size := 0;
+            try
+              WaitForRetry;
+            except
+              on e: EAbort do
+              begin
+                jsoError := JSON();
+                jsoError.Booleans['successful'] := false;
+                jsoError.Strings['error'] := 'Process Aborted';
+                result := jsoError;
+
+                exit;
+              end;
+            end;
+
+            Result := DoSend;
+           // exit;
+          end;
+        end;
+        if (ssResponse.Size > 0) then
+        begin
+          c := ssResponse.DataString.Chars[0];
+          case c of
+            '[' : Result := ProcessAsArray(ssResponse);
+            '{' : Result := ProcessAsObject(ssResponse);
+            else
+            begin
+              result := nil;
+              DoLogVerbose(ssResponse.Datastring);
+            end;
+          end;
+        end else
+          Result := nil;
+      finally
+        ssResponse.Free;
+        ssSource.Free;
+      end;
+    except
+      on e: exception do
+      begin
+        jsoError := JSON();
+        jsoError.Booleans['successful'] := false;
+        jsoError.Strings['error'] := 'Local Send Message Error: '+e.Message;
+        ProcessResponseObject(jsoError);
+        result := jsoError;
+      end;
+    end;
+  end;
+
 begin
   if Assigned(FOnLogMessage) then
     FOnLogMessage(msg);
-  try
-    ssSource := TStringStream.Create(msg.AsJSON, TEncoding.UTF8);
-    ssResponse := TStringStream.Create('',TEncoding.UTF8);
-    try
-      try
-        http.post(FEndpoint.ToString, ssSource, ssResponse);
-      except
-        on e: exception do
-        begin
-          DoLogVerbose('HTTP Error "'+e.Message+'" waiting for Retry.');
-          ssSource.Size := 0;  // TODO: to keep incremental memory growth we might want to freeandnil this instead;
-          ssResponse.Size := 0;
-          try
-            WaitForRetry;
-          except
-            on e: EAbort do
-            begin
-              jsoError := JSON();
-              jsoError.Booleans['successful'] := false;
-              jsoError.Strings['error'] := 'Process Aborted';
-              result := jsoError;
-
-              exit;
-            end;
-          end;
-
-          Result := DoSendMessage(http, Msg);
-          exit;
-        end;
-      end;
-      if (ssResponse.Size > 0) then
-      begin
-        c := ssResponse.DataString.Chars[0];
-        case c of
-          '[' : Result := ProcessAsArray(ssResponse);
-          '{' : Result := ProcessAsObject(ssResponse);
-          else
-          begin
-            result := nil;
-            DoLogVerbose(ssResponse.Datastring);
-          end;
-        end;
-      end else
-        Result := nil;
-    finally
-      ssResponse.Free;
-      ssSource.Free;
-    end;
-  except
-    on e: exception do
-    begin
-      jsoError := JSON();
-      jsoError.Booleans['successful'] := false;
-      jsoError.Strings['error'] := 'Local Send Message Error: '+e.Message;
-      ProcessResponseObject(jsoError);
-      result := jsoError;
-    end;
-  end;
+  Result := DoSend;
   if Assigned(FOnLogResponse) then
     FOnLogResponse(msg);
 end;
