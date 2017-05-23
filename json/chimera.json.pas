@@ -279,7 +279,7 @@ function JSONValueTypeToString(t : TJSONValueTYpe) : string;
 implementation
 
 uses System.Variants, System.Generics.Collections, chimera.json.parser,
-  System.StrUtils, System.DateUtils;
+  System.StrUtils, System.DateUtils, System.TimeSpan;
 
 function JSONValueTypeToString(t : TJSONValueTYpe) : string;
 begin
@@ -545,11 +545,10 @@ end;
 
 function IsValidLocalDate(Value : TDateTime) : boolean;
 var
-  Bias: Integer;
   TimeZone: TTimeZone;
 begin
   TimeZone := TTimeZone.Local;
-  Result := Double(Value) + TimeZone.UtcOffset.TotalMilliseconds >= 0;
+  Result := (Double(Value) * 1000) + TimeZone.UtcOffset.TotalMilliseconds >= 0;
 end;
 
 function StringIsJSON(const str : string) : boolean;
