@@ -277,8 +277,8 @@ function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) 
           on e: exception do
           begin
             DoLogVerbose('HTTP Error "'+e.Message+'" waiting for Retry.');
-            ssSource.Size := 0;  // TODO: to keep incremental memory growth we might want to freeandnil this instead;
-            ssResponse.Size := 0;
+            FreeAndNil(ssSource);
+            FreeAndNil(ssResponse);
             try
               WaitForRetry;
             except
