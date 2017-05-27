@@ -267,64 +267,66 @@ function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) 
     c: Char;
     jsoError : IJSONObject;
   begin
-    try
-      ssSource := TStringStream.Create(msg.AsJSON, TEncoding.UTF8);
-      ssResponse := TStringStream.Create('',TEncoding.UTF8);
+    while True do
       try
+        ssSource := TStringStream.Create(msg.AsJSON, TEncoding.UTF8);
+        ssResponse := TStringStream.Create('',TEncoding.UTF8);
         try
-          http.post(FEndpoint.ToString, ssSource, ssResponse);
-        except
-          on e: exception do
-          begin
-            DoLogVerbose('HTTP Error "'+e.Message+'" waiting for Retry.');
-            FreeAndNil(ssSource);
-            FreeAndNil(ssResponse);
-            try
-              WaitForRetry;
-            except
-              on e: EAbort do
-              begin
-                jsoError := JSON();
-                jsoError.Booleans['successful'] := false;
-                jsoError.Strings['error'] := 'Process Aborted';
-                result := jsoError;
+          try
+            http.post(FEndpoint.ToString, ssSource, ssResponse);
+          except
+            on e: exception do
+            begin
+              DoLogVerbose('HTTP Error "'+e.Message+'" waiting for Retry.');
+              FreeAndNil(ssSource);
+              FreeAndNil(ssResponse);
+              try
+                WaitForRetry;
+              except
+                on e: EAbort do
+                begin
+                  jsoError := JSON();
+                  jsoError.Booleans['successful'] := false;
+                  jsoError.Strings['error'] := 'Process Aborted';
+                  result := jsoError;
 
-                exit;
+                  break;
+                end;
+              end;
+
+              continue;
+            end;
+          end;
+          if (ssResponse.Size > 0) then
+          begin
+            c := ssResponse.DataString.Chars[0];
+            case c of
+              '[' : Result := ProcessAsArray(ssResponse);
+              '{' : Result := ProcessAsObject(ssResponse);
+              else
+              begin
+                result := nil;
+                DoLogVerbose(ssResponse.Datastring);
               end;
             end;
-
-            Result := DoSend;
-            exit;
-          end;
+          end else
+            Result := nil;
+        finally
+          ssResponse.Free;
+          ssSource.Free;
         end;
-        if (ssResponse.Size > 0) then
+        break;
+      except
+        on e: exception do
         begin
-          c := ssResponse.DataString.Chars[0];
-          case c of
-            '[' : Result := ProcessAsArray(ssResponse);
-            '{' : Result := ProcessAsObject(ssResponse);
-            else
-            begin
-              result := nil;
-              DoLogVerbose(ssResponse.Datastring);
-            end;
-          end;
-        end else
-          Result := nil;
-      finally
-        ssResponse.Free;
-        ssSource.Free;
+          jsoError := JSON();
+          jsoError.Booleans['successful'] := false;
+          jsoError.Strings['error'] := 'Local Send Message Error: '+e.Message;
+          ProcessResponseObject(jsoError);
+          result := jsoError;
+          break;
+        end;
       end;
-    except
-      on e: exception do
-      begin
-        jsoError := JSON();
-        jsoError.Booleans['successful'] := false;
-        jsoError.Strings['error'] := 'Local Send Message Error: '+e.Message;
-        ProcessResponseObject(jsoError);
-        result := jsoError;
-      end;
-    end;
   end;
 
 begin
