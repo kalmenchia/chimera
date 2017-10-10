@@ -37,6 +37,7 @@ uses System.SysUtils, System.Classes, System.Generics.Collections,
   System.Types, System.Rtti, chimera.json;
 
 type
+{$I chimera.inc}
 {$SCOPEDENUMS ON}
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
@@ -289,7 +290,12 @@ end;
 procedure TParser.ParseObjectTo(const Obj: IJSONObject);
 var
   sName : String;
+  {$IFDEF HASWEAKREF}
+  [Weak]
+  p : IJSONObject;
+  {$ELSE}
   p : Pointer;
+  {$ENDIF}
 begin
   if FToken <> TParseToken.OpenObject  then
     raise Exception.Create('Object Expected');
@@ -308,22 +314,40 @@ begin
         Obj.Raw[sName] := @FTokenValue;
       TParser.TParseToken.OpenObject:
         begin
+          {$IFDEF HASWEAKREF}
+          p := obj;
+          {$ELSE}
           p := @obj;
+          {$ENDIF}
           Obj.Objects[sName] := ParseObject;
           Obj.Objects[sName].OnChange :=
             procedure(const jso : IJSONObject)
             begin
-              IJSONObject(p).DoChangeNotify;
+              {$IFDEF HASWEAKREF}
+              if Assigned(p) then
+                p.DoChangeNotify;
+              {$ELSE}
+                IJSONObject(p^).DoChangeNotify;
+              {$ENDIF}
             end;
         end;
       TParser.TParseToken.OpenArray:
         begin
+          {$IFDEF HASWEAKREF}
+          p := obj;
+          {$ELSE}
           p := @obj;
+          {$ENDIF}
           Obj.Arrays[sName] := ParseArray;
           Obj.Arrays[sName].OnChange :=
             procedure(const jsa : IJSONArray)
             begin
-              IJSONObject(p).DoChangeNotify;
+              {$IFDEF HASWEAKREF}
+              if Assigned(p) then
+                p.DoChangeNotify;
+              {$ELSE}
+                IJSONObject(p^).DoChangeNotify;
+              {$ENDIF}
             end;
         end;
       TParser.TParseToken.Value:
