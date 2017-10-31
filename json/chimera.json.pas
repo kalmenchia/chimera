@@ -2194,10 +2194,19 @@ begin
         Result := Result+FloatToStr(Self.NumberValue);
     TJSONValueType.array:
     begin
-      Self.ArrayValue.AsJSON(Result);
+      if Assigned(Self.ArrayValue) then
+        Self.ArrayValue.AsJSON(Result)
+      else
+        Result := Result+'null';
+
     end;
     TJSONValueType.object:
-      Self.ObjectValue.AsJSON(Result);
+    begin
+      if Assigned(Self.ObjectValue) then
+        Self.ObjectValue.AsJSON(Result)
+      else
+        Result := Result+'null';
+    end;
     TJSONValueType.boolean:
       if Self.IntegerValue = 1 then
         Result := Result+'true'
@@ -2366,10 +2375,16 @@ begin
       if Assigned(Self.ArrayValue) then
          Self.ArrayValue.AsJSON(Result)
       else
-        Result.Append('[]');
+        Result.Append('null');
     end;
     TJSONValueType.object:
-      Self.ObjectValue.AsJSON(Result);
+    begin
+      if Assigned(Self.ObjectValue) then
+       Self.ObjectValue.AsJSON(Result)
+     else
+      Result.Append('null');
+    end;
+
     TJSONValueType.boolean:
       if Self.IntegerValue = 1 then
         Result.Append('true')
