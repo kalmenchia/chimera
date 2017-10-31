@@ -48,6 +48,8 @@ type
   TChangeObjectHandler = reference to procedure(const obj : IJSONObject);
   TChangeArrayHandler = reference to procedure(const ary : IJSONArray);
 
+  EChimeraException = class(Exception);
+
   TWhitespace = (compact, standard);
 
   PMultiValue = ^TMultiValue;
@@ -737,7 +739,7 @@ begin
         not (t2 in [TJSONValueType.&string, TJSONValueType.number, TJSONValueType.&object])) or
        ((t2 = TJSONValueType.null) and
         not (t1 in [TJSONValueType.&string, TJSONValueType.number, TJSONValueType.&object])) then
-    raise Exception.Create('Value is not of required type: '+JSonValueTypeToString(t1)+' <> '+JSONValueTypeToString(t2));
+    raise EChimeraException.Create('Value is not of required type: '+JSonValueTypeToString(t1)+' <> '+JSONValueTypeToString(t2));
 end;
 
 function JSON(const src : string) : IJSONObject;
@@ -1317,7 +1319,7 @@ begin
       begin
         bRemove := FValues[i].ArrayValue.AsJSON = jsa.AsJSON;
       end else
-        raise Exception.Create('Unknown variant type.');
+        raise EChimeraException.Create('Unknown variant type.');
     end else
       case VarType(Value) of
         varSmallInt,
@@ -1364,7 +1366,7 @@ begin
         end;
 
         else
-          raise Exception.Create('Unknown variant type.');
+          raise EChimeraException.Create('Unknown variant type.');
       end;
       if bRemove then
         FValues.Delete(i);
@@ -1929,7 +1931,7 @@ begin
   if FValues.ContainsKey(name) then
     result := FValues[name]
   else
-    raise Exception.Create('Object is missing the "'+name+'" property.');
+    raise EChimeraException.Create('Object is missing the "'+name+'" property.');
 
 end;
 
@@ -2288,7 +2290,7 @@ begin
     begin
       Initialize(jsa);
     end else
-      raise Exception.Create('Unknown variant type.');
+      raise EChimeraException.Create('Unknown variant type.');
   end else
     case VarType(Value) of
       varSmallInt,
@@ -2338,7 +2340,7 @@ begin
       end;
 
       else
-        raise Exception.Create('Unknown variant type.');
+        raise EChimeraException.Create('Unknown variant type.');
     end;
 end;
 

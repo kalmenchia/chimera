@@ -233,7 +233,7 @@ end;
 function TParser.ParseArray : IJSONArray;
 begin
   if FToken <> TParseToken.OpenArray  then
-    raise Exception.Create('Array Expected');
+    raise EParseException.Create('Array Expected');
   Result := JSONArray;
   GetToken;
   while FToken <> TParseToken.CloseArray do
@@ -268,12 +268,12 @@ begin
       TParser.TParseToken.MaxOp,
       TParser.TParseToken.Colon:
         if FToken <> TParseToken.Colon then
-          raise Exception.Create('Value Expected');
+          raise EParseException.Create('Value Expected');
     end;
     GetToken;
     if not (FToken in [TParseToken.Comma, TParseToken.CloseArray]) then
     begin
-      raise Exception.Create('Comma or Close Array Expected');
+      raise EParseException.Create('Comma or Close Array Expected');
     end;
     if FToken = TParseToken.Comma then
       GetToken;
@@ -292,16 +292,16 @@ var
   p : Pointer;
 begin
   if FToken <> TParseToken.OpenObject  then
-    raise Exception.Create('Object Expected');
+    raise EParseException.Create('Object Expected');
   GetToken;
   while FToken <> TParseToken.CloseObject do
   begin
     if FToken <> TParseToken.String then
-      raise Exception.Create('String Expected');
+      raise EParseException.Create('String Expected');
     sName := FTokenValue.StringValue;
     GetToken;
     if FToken <> TParseToken.Colon then
-      raise Exception.Create('Colon Expected');
+      raise EParseException.Create('Colon Expected');
     GetToken;
     case FToken of
       TParser.TParseToken.String:
@@ -348,12 +348,12 @@ begin
       TParser.TParseToken.MaxOp,
       TParser.TParseToken.Colon:
         if FToken <> TParseToken.Colon then
-          raise Exception.Create('Value Expected');
+          raise EParseException.Create('Value Expected');
     end;
     GetToken;
     if not (FToken in [TParseToken.Comma, TParseToken.CloseObject]) then
     begin
-      raise Exception.Create('Comma or Close Object Expected');
+      raise EParseException.Create('Comma or Close Object Expected');
     end;
     if FToken = TParseToken.Comma then
       GetToken;
