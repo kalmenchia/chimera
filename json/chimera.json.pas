@@ -741,7 +741,7 @@ begin
         not (t2 in [TJSONValueType.&string, TJSONValueType.number, TJSONValueType.&object])) or
        ((t2 = TJSONValueType.null) and
         not (t1 in [TJSONValueType.&string, TJSONValueType.number, TJSONValueType.&object])) then
-    raise EChimeraException.Create('Value is not of required type: '+JSonValueTypeToString(t1)+' <> '+JSONValueTypeToString(t2));
+    raise EChimeraJSONException.Create('Value is not of required type: '+JSonValueTypeToString(t1)+' <> '+JSONValueTypeToString(t2));
 end;
 
 function JSON(const src : string) : IJSONObject;
@@ -1321,7 +1321,7 @@ begin
       begin
         bRemove := FValues[i].ArrayValue.AsJSON = jsa.AsJSON;
       end else
-        raise EChimeraException.Create('Unknown variant type.');
+        raise EChimeraJSONException.Create('Unknown variant type.');
     end else
       case VarType(Value) of
         varSmallInt,
@@ -1368,7 +1368,7 @@ begin
         end;
 
         else
-          raise EChimeraException.Create('Unknown variant type.');
+          raise EChimeraJSONException.Create('Unknown variant type.');
       end;
       if bRemove then
         FValues.Delete(i);
@@ -1933,7 +1933,7 @@ begin
   if FValues.ContainsKey(name) then
     result := FValues[name]
   else
-    raise EChimeraException.Create('Object is missing the "'+name+'" property.');
+    raise EChimeraJSONException.Create('Object is missing the "'+name+'" property.');
 
 end;
 
@@ -2292,7 +2292,7 @@ begin
     begin
       Initialize(jsa);
     end else
-      raise EChimeraException.Create('Unknown variant type.');
+      raise EChimeraJSONException.Create('Unknown variant type.');
   end else
     case VarType(Value) of
       varSmallInt,
@@ -2342,7 +2342,7 @@ begin
       end;
 
       else
-        raise EChimeraException.Create('Unknown variant type.');
+        raise EChimeraJSONException.Create('Unknown variant type.');
     end;
 end;
 
