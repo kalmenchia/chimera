@@ -50,6 +50,8 @@ type
 
   EChimeraException = class(Exception);
 
+  EChimeraJSONException = class(EChimeraException);
+
   TWhitespace = (compact, standard);
 
   PMultiValue = ^TMultiValue;
@@ -2361,7 +2363,10 @@ begin
         Result.Append(FloatToStr(Self.NumberValue));
     TJSONValueType.array:
     begin
-      Self.ArrayValue.AsJSON(Result);
+      if Assigned(Self.ArrayValue) then
+         Self.ArrayValue.AsJSON(Result)
+      else
+        Result.Append('[]');
     end;
     TJSONValueType.object:
       Self.ObjectValue.AsJSON(Result);

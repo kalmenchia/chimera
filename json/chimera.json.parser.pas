@@ -41,9 +41,7 @@ type
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
 
-  EParseException = class(Exception)
-
-  end;
+  EChimeraParseException = class(EChimeraException);
 
   TParser = class(TObject)
   type
@@ -219,7 +217,7 @@ begin
         else if FTmpIdent.ToString = 'null' then
           FTokenValue.InitializeNull
         else
-          raise EParseException.Create('Unexpected Value');
+          raise EChimeraParseException.Create('Unexpected Value');
       end;
     end;
   end else
@@ -233,7 +231,7 @@ end;
 function TParser.ParseArray : IJSONArray;
 begin
   if FToken <> TParseToken.OpenArray  then
-    raise EParseException.Create('Array Expected');
+    raise EChimeraParseException.Create('Array Expected');
   Result := JSONArray;
   GetToken;
   while FToken <> TParseToken.CloseArray do
@@ -268,12 +266,12 @@ begin
       TParser.TParseToken.MaxOp,
       TParser.TParseToken.Colon:
         if FToken <> TParseToken.Colon then
-          raise EParseException.Create('Value Expected');
+          raise EChimeraParseException.Create('Value Expected');
     end;
     GetToken;
     if not (FToken in [TParseToken.Comma, TParseToken.CloseArray]) then
     begin
-      raise EParseException.Create('Comma or Close Array Expected');
+      raise EChimeraParseException.Create('Comma or Close Array Expected');
     end;
     if FToken = TParseToken.Comma then
       GetToken;
@@ -292,16 +290,16 @@ var
   p : Pointer;
 begin
   if FToken <> TParseToken.OpenObject  then
-    raise EParseException.Create('Object Expected');
+    raise EChimeraParseException.Create('Object Expected');
   GetToken;
   while FToken <> TParseToken.CloseObject do
   begin
     if FToken <> TParseToken.String then
-      raise EParseException.Create('String Expected');
+      raise EChimeraParseException.Create('String Expected');
     sName := FTokenValue.StringValue;
     GetToken;
     if FToken <> TParseToken.Colon then
-      raise EParseException.Create('Colon Expected');
+      raise EChimeraParseException.Create('Colon Expected');
     GetToken;
     case FToken of
       TParser.TParseToken.String:
@@ -348,12 +346,12 @@ begin
       TParser.TParseToken.MaxOp,
       TParser.TParseToken.Colon:
         if FToken <> TParseToken.Colon then
-          raise EParseException.Create('Value Expected');
+          raise EChimeraParseException.Create('Value Expected');
     end;
     GetToken;
     if not (FToken in [TParseToken.Comma, TParseToken.CloseObject]) then
     begin
-      raise EParseException.Create('Comma or Close Object Expected');
+      raise EChimeraParseException.Create('Comma or Close Object Expected');
     end;
     if FToken = TParseToken.Comma then
       GetToken;
