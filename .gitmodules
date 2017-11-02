@@ -1,0 +1,3 @@
+[submodule "common/fastcode"]
+	path = common/fastcode
+	url = https://github.com/JBontes/FastCode
