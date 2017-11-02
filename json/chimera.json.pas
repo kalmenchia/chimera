@@ -48,6 +48,10 @@ type
   TChangeObjectHandler = reference to procedure(const obj : IJSONObject);
   TChangeArrayHandler = reference to procedure(const ary : IJSONArray);
 
+  EChimeraException = class(Exception);
+
+  EChimeraJSONException = class(EChimeraException);
+
   TWhitespace = (compact, standard);
 
   PMultiValue = ^TMultiValue;
@@ -737,7 +741,7 @@ begin
         not (t2 in [TJSONValueType.&string, TJSONValueType.number, TJSONValueType.&object])) or
        ((t2 = TJSONValueType.null) and
         not (t1 in [TJSONValueType.&string, TJSONValueType.number, TJSONValueType.&object])) then
-    raise Exception.Create('Value is not of required type: '+JSonValueTypeToString(t1)+' <> '+JSONValueTypeToString(t2));
+    raise EChimeraJSONException.Create('Value is not of required type: '+JSonValueTypeToString(t1)+' <> '+JSONValueTypeToString(t2));
 end;
 
 function JSON(const src : string) : IJSONObject;
@@ -1317,7 +1321,7 @@ begin
       begin
         bRemove := FValues[i].ArrayValue.AsJSON = jsa.AsJSON;
       end else
-        raise Exception.Create('Unknown variant type.');
+        raise EChimeraJSONException.Create('Unknown variant type.');
     end else
       case VarType(Value) of
         varSmallInt,
@@ -1364,7 +1368,7 @@ begin
         end;
 
         else
-          raise Exception.Create('Unknown variant type.');
+          raise EChimeraJSONException.Create('Unknown variant type.');
       end;
       if bRemove then
         FValues.Delete(i);
@@ -1929,7 +1933,7 @@ begin
   if FValues.ContainsKey(name) then
     result := FValues[name]
   else
-    raise Exception.Create('Object is missing the "'+name+'" property.');
+    raise EChimeraJSONException.Create('Object is missing the "'+name+'" property.');
 
 end;
 
@@ -2190,10 +2194,19 @@ begin
         Result := Result+FloatToStr(Self.NumberValue);
     TJSONValueType.array:
     begin
-      Self.ArrayValue.AsJSON(Result);
+      if Assigned(Self.ArrayValue) then
+        Self.ArrayValue.AsJSON(Result)
+      else
+        Result := Result+'null';
+
     end;
     TJSONValueType.object:
-      Self.ObjectValue.AsJSON(Result);
+    begin
+      if Assigned(Self.ObjectValue) then
+        Self.ObjectValue.AsJSON(Result)
+      else
+        Result := Result+'null';
+    end;
     TJSONValueType.boolean:
       if Self.IntegerValue = 1 then
         Result := Result+'true'
@@ -2288,7 +2301,7 @@ begin
     begin
       Initialize(jsa);
     end else
-      raise Exception.Create('Unknown variant type.');
+      raise EChimeraJSONException.Create('Unknown variant type.');
   end else
     case VarType(Value) of
       varSmallInt,
@@ -2338,7 +2351,7 @@ begin
       end;
 
       else
-        raise Exception.Create('Unknown variant type.');
+        raise EChimeraJSONException.Create('Unknown variant type.');
     end;
 end;
 
@@ -2359,10 +2372,19 @@ begin
         Result.Append(FloatToStr(Self.NumberValue));
     TJSONValueType.array:
     begin
-      Self.ArrayValue.AsJSON(Result);
+      if Assigned(Self.ArrayValue) then
+         Self.ArrayValue.AsJSON(Result)
+      else
+        Result.Append('null');
     end;
     TJSONValueType.object:
-      Self.ObjectValue.AsJSON(Result);
+    begin
+      if Assigned(Self.ObjectValue) then
+       Self.ObjectValue.AsJSON(Result)
+     else
+      Result.Append('null');
+    end;
+
     TJSONValueType.boolean:
       if Self.IntegerValue = 1 then
         Result.Append('true')
