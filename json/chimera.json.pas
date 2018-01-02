@@ -99,6 +99,8 @@ type
     function GetObject(const idx: integer): IJSONObject;
     function GetArray(const idx: integer): IJSONArray;
     function GetType(const idx: integer): TJSONValueType;
+    function GetBytes(const idx : integer) : TArray<Byte>;
+
     procedure SetBoolean(const idx: integer; const Value: Boolean);
     procedure SetCount(const Value: integer);
     procedure SetNumber(const idx: integer; const Value: Double);
@@ -111,6 +113,7 @@ type
     procedure SetArray(const idx: integer; const Value: IJSONArray);
     procedure SetObject(const idx: integer; const Value: IJSONObject);
     procedure SetType(const idx: integer; const Value: TJSONValueType);
+    procedure SetBytes(const idx : integer; const Value : TArray<Byte>);
     //procedure ParentOverride(parent : IJSONArray); overload;
     //procedure ParentOverride(parent : IJSONObject); overload;
 
@@ -125,6 +128,7 @@ type
     procedure Add(const value : IJSONArray); overload;
     procedure Add(const value : IJSONObject); overload;
     procedure Add(const value : Variant); overload;
+    procedure Add(const value : TArray<Byte>); overload;
     procedure AddNull;
     procedure AddCode(const value : string);
     procedure Delete(const idx : integer);
@@ -168,6 +172,7 @@ type
     //function ParentArray : IJSONArray;
     //function ParentObject : IJSONObject;
 
+    property Bytes[const idx : integer] : TArray<Byte> read GetBytes write SetBytes;
     property Strings[const idx : integer] : string read GetString write SetString;
     property Numbers[const idx : integer] : Double read GetNumber write SetNumber;
     property Dates[const idx : integer] : TDateTime read GetDate write SetDate;
@@ -202,6 +207,8 @@ type
     function GetArray(const name : string): IJSONArray;
     function GetType(const name : string): TJSONValueType;
     function GetName(const idx : integer): string;
+    function GetBytes(const name : string): TArray<Byte>;
+
     procedure SetBoolean(const name : string; const Value: Boolean);
     procedure SetNumber(const name : string; const Value: Double);
     procedure SetDate(const name : string; const Value: TDateTime);
@@ -213,6 +220,7 @@ type
     procedure SetArray(const name : string; const Value: IJSONArray);
     procedure SetObject(const name : string; const Value: IJSONObject);
     procedure SetType(const name : string; const Value: TJSONValueType);
+    procedure SetBytes(const name : string; const Value: TArray<Byte>);
     //procedure ParentOverride(parent : IJSONArray); overload;
     //procedure ParentOverride(parent : IJSONObject); overload;
 
@@ -235,6 +243,7 @@ type
     procedure Add(const name : string; const value : IJSONArray); overload;
     procedure Add(const name : string; const value : IJSONObject); overload;
     procedure Add(const name : string; const value : Variant); overload;
+    procedure Add(const name : string; const value : TArray<Byte>); overload;
     procedure Remove(const name : string);
     procedure AddNull(const name : string);
     procedure AddCode(const name : string; const value : string);
@@ -259,6 +268,7 @@ type
     //function ParentArray : IJSONArray;
     //function ParentObject : IJSONObject;
 
+    property Bytes[const name : string] : TArray<Byte> read GetBytes write SetBytes;
     property Strings[const name : string] : string read GetString write SetString;
     property Numbers[const name : string] : Double read GetNumber write SetNumber;
     property Dates[const name : string] : TDateTime read GetDate write SetDate;
@@ -286,7 +296,7 @@ function JSONValueTypeToString(t : TJSONValueTYpe) : string;
 implementation
 
 uses System.Variants, System.Generics.Collections, chimera.json.parser,
-  System.StrUtils, System.DateUtils, System.TimeSpan;
+  System.StrUtils, System.DateUtils, System.TimeSpan, System.NetEncoding;
 
 function JSONValueTypeToString(t : TJSONValueTYpe) : string;
 begin
@@ -328,6 +338,9 @@ type
     function GetObject(const idx: integer): IJSONObject;
     function GetArray(const idx: integer): IJSONArray;
     function GetType(const idx: integer): TJSONValueType;
+    function GetBytes(const idx : integer) : TArray<Byte>;
+
+    procedure SetBytes(const idx: integer; const Value: TArray<Byte>);
     procedure SetBoolean(const idx: integer; const Value: Boolean);
     procedure SetCount(const Value: integer);
     procedure SetNumber(const idx: integer; const Value: Double);
@@ -368,6 +381,7 @@ type
     procedure Add(const value : IJSONArray); overload;
     procedure Add(const value : IJSONObject); overload;
     procedure Add(const value : Variant); overload;
+    procedure Add(const value : TArray<Byte>); overload;
     procedure AddNull;
     procedure AddCode(const value : string);
 
@@ -401,6 +415,7 @@ type
 
     function Equals(const obj : IJSONArray) : boolean; reintroduce;
 
+    property Bytes[const idx : integer] : TArray<Byte> read GetBytes write SetBytes;
     property Strings[const idx : integer] : string read GetString write SetString;
     property Numbers[const idx : integer] : Double read GetNumber write SetNumber;
     property Dates[const idx : integer] : TDateTime read GetDate write SetDate;
@@ -441,6 +456,9 @@ type
     function GetArray(const name : string): IJSONArray;
     function GetType(const name : string): TJSONValueType;
     function GetName(const idx : integer): string;
+    function GetBytes(const name : string): TArray<Byte>;
+
+    procedure SetBytes(const name : string; const Value: TArray<Byte>);
     procedure SetBoolean(const name : string; const Value: Boolean);
     procedure SetNumber(const name : string; const Value: Double);
     procedure SetDate(const name : string; const Value: TDateTime);
@@ -484,6 +502,7 @@ type
     procedure Add(const name : string; const value : IJSONArray); overload;
     procedure Add(const name : string; const value : IJSONObject); overload;
     procedure Add(const name : string; const value : Variant); overload;
+    procedure Add(const name : string; const value : TArray<Byte>); overload;
     procedure AddNull(const name : string);
     procedure AddCode(const name : string; const value : string);
 
@@ -507,6 +526,7 @@ type
 
     function Equals(const obj : IJSONObject) : boolean; reintroduce;
 
+    property Bytes[const name : string] : TArray<Byte> read GetBytes write SetBytes;
     property Strings[const name : string] : string read GetString write SetString;
     property Numbers[const name : string] : Double read GetNumber write SetNumber;
     property Dates[const name : string] : TDateTime read GetDate write SetDate;
@@ -1065,6 +1085,11 @@ begin
   Result := FValues.Items[idx].IntegerValue <> 0;
 end;
 
+function TJSONArray.GetBytes(const idx: integer): TArray<Byte>;
+begin
+  Result := TNetEncoding.Base64.Decode(TEncoding.UTF8.GetBytes(Strings[idx]));
+end;
+
 function TJSONArray.GetCount: integer;
 begin
   Result := FValues.Count;
@@ -1454,6 +1479,11 @@ begin
   DoChangeNotify;
 end;
 
+procedure TJSONArray.SetBytes(const idx: integer; const Value: TArray<Byte>);
+begin
+  Strings[idx] := TEncoding.UTF8.GetString(TNetEncoding.Base64.Encode(Value));
+end;
+
 procedure TJSONArray.SetCount(const Value: integer);
 begin
   EnsureSize(Value);
@@ -1578,6 +1608,11 @@ begin
   pmv.Initialize(value);
   FValues.Add(pmv);
   DoChangeNotify;
+end;
+
+procedure TJSONArray.Add(const value: TArray<Byte>);
+begin
+  Add(TEncoding.UTF8.GetString(TNetEncoding.Base64.Encode(Value)));
 end;
 
 { TJSONObject }
@@ -1845,6 +1880,11 @@ begin
   Result := ValueOf[Name].IntegerValue <> 0;
 end;
 
+function TJSONObject.GetBytes(const name: string): TArray<Byte>;
+begin
+  Result := TNetEncoding.Base64.Decode(TEncoding.UTF8.GetBytes(Strings[name]));
+end;
+
 function TJSONObject.GetCount: integer;
 begin
   Result := FValues.Count;
@@ -2027,6 +2067,11 @@ begin
   DoChangeNotify;
 end;
 
+procedure TJSONObject.SetBytes(const name: string; const Value: TArray<Byte>);
+begin
+  Strings[name] := TEncoding.UTF8.GetString(TNetEncoding.Base64.Encode(Value));
+end;
+
 procedure TJSONObject.SetDate(const name: string; const Value: TDateTime);
 begin
   SetString(name, DateToISO8601(Value));
@@ -2154,6 +2199,11 @@ begin
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
   DoChangeNotify;
+end;
+
+procedure TJSONObject.Add(const name: string; const value: TArray<Byte>);
+begin
+  Add(name, TEncoding.UTF8.GetString(TNetEncoding.Base64.Encode(Value)));
 end;
 
 { TMultiValue }
