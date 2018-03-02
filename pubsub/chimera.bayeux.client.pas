@@ -266,6 +266,7 @@ function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) 
     ssSource, ssResponse : TStringStream;
     c: Char;
     jsoError : IJSONObject;
+    rescode: IHttpResponse;
   begin
     while True do
       try
@@ -273,7 +274,9 @@ function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) 
         ssResponse := TStringStream.Create('',TEncoding.UTF8);
         try
           try
-            http.post(FEndpoint.ToString, ssSource, ssResponse);
+            rescode := http.post(FEndpoint.ToString, ssSource, ssResponse);
+            if rescode.StatusCode <> 200 then
+              raise ENetHTTPRequestException.Create(rescode.StatusCode.ToString+': '+rescode.StatusText);
           except
             on e: exception do
             begin
