@@ -1984,7 +1984,7 @@ function TJSONObject.LoadFromFile(Filename: string) : IJSONObject;
 var
   fs : TFileStream;
 begin
-  fs := TFileStream.Create(Filename, fmOpenRead);
+  fs := TFileStream.Create(Filename, fmOpenRead or fmShareDenyNone);
   try
     Result := LoadFromStream(fs);
   finally
