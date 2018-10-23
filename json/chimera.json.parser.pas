@@ -293,8 +293,6 @@ var
   {$IFDEF HASWEAKREF}
   [Weak]
   p : IJSONObject;
-  {$ELSE}
-  p : Pointer;
   {$ENDIF}
 begin
   if FToken <> TParseToken.OpenObject  then
@@ -316,8 +314,6 @@ begin
         begin
           {$IFDEF HASWEAKREF}
           p := obj;
-          {$ELSE}
-          p := @obj;
           {$ENDIF}
           Obj.Objects[sName] := ParseObject;
           Obj.Objects[sName].OnChange :=
@@ -326,8 +322,6 @@ begin
               {$IFDEF HASWEAKREF}
               if Assigned(p) then
                 p.DoChangeNotify;
-              {$ELSE}
-                IJSONObject(p^).DoChangeNotify;
               {$ENDIF}
             end;
         end;
@@ -335,8 +329,6 @@ begin
         begin
           {$IFDEF HASWEAKREF}
           p := obj;
-          {$ELSE}
-          p := @obj;
           {$ENDIF}
           Obj.Arrays[sName] := ParseArray;
           Obj.Arrays[sName].OnChange :=
@@ -345,8 +337,6 @@ begin
               {$IFDEF HASWEAKREF}
               if Assigned(p) then
                 p.DoChangeNotify;
-              {$ELSE}
-                IJSONObject(p^).DoChangeNotify;
               {$ENDIF}
             end;
         end;
