@@ -258,6 +258,8 @@ type
     procedure AddNull(const name : string);
     procedure AddCode(const name : string; const value : string);
 
+    function SameAs(CompareTo : IJSONObject) : boolean;
+    function AsSHA1(Whitespace : TWhitespace = TWhitespace.Standard) : string;
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     procedure AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
@@ -311,7 +313,8 @@ function JSONValueTypeToString(t : TJSONValueTYpe) : string;
 implementation
 
 uses System.Variants, System.Generics.Collections, chimera.json.parser,
-  System.StrUtils, System.DateUtils, System.TimeSpan, System.NetEncoding;
+  System.StrUtils, System.DateUtils, System.TimeSpan, System.NetEncoding,
+  System.Hash;
 
 function JSONValueTypeToString(t : TJSONValueTYpe) : string;
 begin
@@ -531,6 +534,8 @@ type
     procedure AddNull(const name : string);
     procedure AddCode(const name : string; const value : string);
 
+    function SameAs(CompareTo : IJSONObject) : boolean;
+    function AsSHA1(Whitespace : TWhitespace = TWhitespace.Standard) : string;
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     procedure AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
@@ -1867,6 +1872,15 @@ begin
 end;
 
 
+function TJSONObject.AsSHA1(Whitespace: TWhitespace): string;
+var
+  LSHA2: THashSHA1;
+begin
+  LSHA2 := THashSHA1.Create;
+  LSHA2.Update(TEncoding.UTF8.GetBytes(AsJSON(Whitespace)));
+  Result := LSHA2.HashAsString.ToUpper;
+end;
+
 procedure TJSONObject.BeginUpdates;
 begin
  FUpdating := True;
@@ -2229,6 +2243,11 @@ end;
 procedure TJSONObject.Remove(const name: string);
 begin
   FValues.Remove(name);
+end;
+
+function TJSONObject.SameAs(CompareTo: IJSONObject): boolean;
+begin
+  Result := AsSHA1 = CompareTo.AsSHA1;
 end;
 
 procedure TJSONObject.SaveToFile(const Filename: string; Whitespace : TWhitespace = TWhitespace.Standard);
