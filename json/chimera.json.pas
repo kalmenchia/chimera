@@ -1577,7 +1577,7 @@ begin
         begin
           SetLength(Data, SizeOf(Double));
           d := Raw[idx]^.NumberValue;
-          Stream.Write(@d, SizeOf(Double));
+          Stream.WriteData(@d, SizeOf(Double));
           exit;
         end;
       TJSONValueType.&array:
@@ -2293,7 +2293,7 @@ begin
         begin
           SetLength(Data, SizeOf(Double));
           d := Raw[Name]^.NumberValue;
-          Stream.Write(@d, SizeOf(Double));
+          Stream.WriteData(@d, SizeOf(Double));
           exit;
         end;
       TJSONValueType.&array:
