@@ -50,6 +50,8 @@ type
 
   TChangeObjectHandler = reference to procedure(const obj : IJSONObject);
   TChangeArrayHandler = reference to procedure(const ary : IJSONArray);
+  TDuplicateResolution = (Skip, Overwrite);
+  TDuplicateHandler = reference to function(const prop : string) : TDuplicateResolution;
 
   EChimeraException = class(Exception);
 
@@ -101,6 +103,7 @@ type
     function GetType(const idx: integer): TJSONValueType;
     function GetBytes(const idx : integer) : TArray<Byte>;
     function GetGUID(const idx : integer) : TGuid;
+    function GetValue(const idx : integer) : PMultiValue;
 
     procedure SetBoolean(const idx: integer; const Value: Boolean);
     procedure SetCount(const Value: integer);
@@ -133,6 +136,7 @@ type
     procedure Add(const value : TArray<Byte>); overload;
     procedure AddNull;
     procedure AddCode(const value : string);
+    procedure Merge(const &Array : IJSONArray);
     procedure Delete(const idx : integer);
     procedure Clear;
 
@@ -175,6 +179,7 @@ type
     procedure Each(proc : TProcConst<IJSONObject>); overload;
     procedure Each(proc : TProcConst<IJSONArray>); overload;
     procedure Each(proc : TProcConst<Variant>); overload;
+    procedure Each(proc : TProcConst<PMultiValue>); overload;
 
     //function ParentArray : IJSONArray;
     //function ParentObject : IJSONObject;
@@ -192,6 +197,7 @@ type
     property Arrays[const idx : integer] : IJSONArray read GetArray write SetArray;
     property Items[const idx : integer] : Variant read GetItem write SetItem; default;
     property Types[const idx : integer] : TJSONValueType read GetType write SetType;
+    property Values[const idx : integer] : PMultiValue read GetValue;
     property Count : integer read GetCount write SetCount;
   end;
 
@@ -217,6 +223,7 @@ type
     function GetName(const idx : integer): string;
     function GetBytes(const name : string): TArray<Byte>;
     function GetGuid(const name : string) : TGuid;
+    function GetValue(const name : string) : PMultiValue;
 
     procedure SetBoolean(const name : string; const Value: Boolean);
     procedure SetNumber(const name : string; const Value: Double);
@@ -258,6 +265,7 @@ type
     procedure AddNull(const name : string);
     procedure AddCode(const name : string; const value : string);
 
+    procedure Merge(const &object : IJSONObject; OnDuplicate : TDuplicateHandler = nil);
     function SameAs(CompareTo : IJSONObject) : boolean;
     function AsSHA1(Whitespace : TWhitespace = TWhitespace.Standard) : string;
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
@@ -297,6 +305,7 @@ type
     property Arrays[const name : string] : IJSONArray read GetArray write SetArray;
     property Items[const name : string] : Variant read GetItem write SetItem; default;
     property Types[const name : string] : TJSONValueType read GetType write SetType;
+    property Values[const name : string] : PMultiValue read GetValue;
     property Count : integer read GetCount;
     property Names[const idx : integer] : string read GetName;
     property Has[const name : string] : boolean read GetHas;
@@ -358,6 +367,7 @@ type
     function GetType(const idx: integer): TJSONValueType;
     function GetBytes(const idx : integer) : TArray<Byte>;
     function GetGuid(const idx : integer) : TGuid;
+    function GetValue(const idx : integer) : PMultiValue;
 
     procedure SetGuid(const idx : integer; const Value : TGUID);
     procedure SetBytes(const idx: integer; const Value: TArray<Byte>);
@@ -398,6 +408,7 @@ type
     procedure Each(proc : TProcConst<IJSONObject>); overload;
     procedure Each(proc : TProcConst<IJSONArray>); overload;
     procedure Each(proc : TProcConst<Variant>); overload;
+    procedure Each(proc : TProcConst<PMultiValue>); overload;
 
     procedure Add(const value : string); overload;
     procedure Add(const value : double); overload;
@@ -409,6 +420,7 @@ type
     procedure Add(const value : TArray<Byte>); overload;
     procedure AddNull;
     procedure AddCode(const value : string);
+    procedure Merge(const &Array : IJSONArray);
 
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
@@ -484,6 +496,7 @@ type
     function GetName(const idx : integer): string;
     function GetBytes(const name : string): TArray<Byte>;
     function GetGuid(const name: string): TGuid;
+    function GetValue(const name: string) : PMultiValue;
 
     procedure SetGuid(const name: string; const Value: TGuid);
     procedure SetBytes(const name : string; const Value: TArray<Byte>);
@@ -534,6 +547,7 @@ type
     procedure AddNull(const name : string);
     procedure AddCode(const name : string; const value : string);
 
+    procedure Merge(const &object : IJSONObject; OnDuplicate : TDuplicateHandler = nil);
     function SameAs(CompareTo : IJSONObject) : boolean;
     function AsSHA1(Whitespace : TWhitespace = TWhitespace.Standard) : string;
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
@@ -1205,6 +1219,11 @@ begin
   Result := FValues.Items[idx].ValueType;
 end;
 
+function TJSONArray.GetValue(const idx: integer): PMultiValue;
+begin
+  Result := FValues[idx];
+end;
+
 function TJSONArray.IndexOf(const value: int64): integer;
 var
   i: Integer;
@@ -1351,6 +1370,16 @@ begin
   for i := 0 to FValues.Count-1 do
   begin
     LoadFromStream(i, Stream, Encode);
+  end;
+end;
+
+procedure TJSONArray.Merge(const &Array: IJSONArray);
+var
+  i : integer;
+begin
+  for i := 0 to &Array.Count-1 do
+  begin
+    FValues.Add(&Array.Values[i]);
   end;
 end;
 
@@ -1768,6 +1797,14 @@ begin
   Add(TEncoding.UTF8.GetString(TNetEncoding.Base64.Encode(Value)));
 end;
 
+procedure TJSONArray.Each(proc: TProcConst<PMultiValue>);
+var
+  i: Integer;
+begin
+  for i := 0 to FValues.Count-1 do
+    proc(FValues[i]);
+end;
+
 { TJSONObject }
 
 procedure TJSONObject.Add(const name: string; const value: double);
@@ -2138,6 +2175,11 @@ begin
 end;
 
 
+function TJSONObject.GetValue(const name: string): PMultiValue;
+begin
+  Result := FValues[name];
+end;
+
 function TJSONObject.GetValueOf(const name: string): PMultiValue;
 begin
   if FValues.ContainsKey(name) then
@@ -2232,6 +2274,41 @@ begin
   Result := Self;
 end;
 
+
+procedure TJSONObject.Merge(const &object: IJSONObject; OnDuplicate: TDuplicateHandler = nil);
+begin
+  &Object.Each(
+    procedure(const Prop : string; const val : PMultiValue)
+    var
+      bOk : boolean;
+    begin
+      if Has[Prop] and Assigned(OnDuplicate) then
+        bOK := OnDuplicate(Prop) = TDuplicateResolution.Overwrite
+      else
+        bOK := True;
+      if bOK then
+        case &Object.Types[Prop] of
+          TJSONValueType.&string:
+            Strings[Prop] := &Object.Strings[Prop];
+          TJSONValueType.number:
+            Numbers[Prop] := &Object.Numbers[Prop];
+          TJSONValueType.&array:
+            Arrays[Prop] := &Object.Arrays[Prop];
+          TJSONValueType.&object:
+            Objects[Prop] := &Object.Objects[Prop];
+          TJSONValueType.boolean:
+            Booleans[Prop] := &Object.Booleans[Prop];
+          TJSONValueType.null:
+          begin
+            Remove(Prop);
+            AddNull(Prop);
+          end;
+          TJSONValueType.code:
+            Raw[Prop] := &Object.Raw[Prop];
+        end;
+    end
+  );
+end;
 
 procedure TJSONObject.Reload(const Source: string);
 begin
