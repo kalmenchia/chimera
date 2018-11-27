@@ -220,7 +220,7 @@ begin
         else if FTmpIdent.ToString = 'null' then
           FTokenValue.InitializeNull
         else
-          raise EChimeraParseException.Create('Unexpected Value');
+          raise EChimeraParseException.Create('Unexpected Value "'+FTmpIdent.ToString+'"');
       end;
     end;
   end else
