@@ -49,13 +49,43 @@ type
     META_SUBSCRIBE   = '/meta/subscribe';
     META_UNSUBSCRIBE = '/meta/unsubscribe';
     META_DISCONNECT  = '/meta/disconnect';
+    type
+      ISubHandler = interface(IInterface)
+        function GetHandler : TMessageHandler;
+        procedure SetHandler(const Value: TMessageHandler);
+        function GetLastStamp : TDateTime;
+        procedure SetLastStamp(const Value : TDateTime);
+        function GetSentPing : boolean;
+        procedure SetSentPing(const Value : boolean);
+        property Handler : TMessageHandler read GetHandler write SetHandler;
+        property LastStamp : TDateTime read GetLastStamp write SetLastSTamp;
+        property SentPing : boolean read GetSentPing write SetSentPing;
+      end;
+      TSubHandler = class(TInterfacedObject, ISubHandler)
+      private
+        FSentPing : boolean;
+        FLastStamp: TDateTime;
+        FHandler: TMessageHandler;
+        function GetHandler: TMessageHandler;
+        function GetLastStamp: TDateTime;
+        procedure SetHandler(const Value: TMessageHandler);
+        procedure SetLastSTamp(const Value: TDateTime);
+        function GetSentPing : boolean;
+        procedure SetSentPing(const Value : boolean);
+      public
+        constructor Create(const AHandler : TMessageHandler); reintroduce;
+        property Handler : TMessageHandler read GetHandler write SetHandler;
+        property LastStamp : TDateTime read GetLastStamp write SetLastSTamp;
+        property SentPing : boolean read GetSentPing write SetSentPing;
+      end;
   strict private
     FEndpoint: TURI;
     FClientIDCS : TMultiReadExclusiveWriteSynchronizer;
     FClientID : string;
     FListener : TThread;
     FMessageID : Int64;
-    FDispatcher : TDictionary<string, TMessageHandler>;
+    FDispatcherCS : TMultiReadExclusiveWriteSynchronizer;
+    FDispatcher : TDictionary<string, ISubHandler>;
     FCookieManager : TCookieManager;
     FRetryMode : TRetryMode;
     FVersion: string;
@@ -74,6 +104,7 @@ type
     FOnLogResponse: TMessageHandler;
     FOnLogVerbose: TStringHandler;
     FOnClientIDChanged: TClientIDHandler;
+    FResubPing: integer;
     function DoAuthenticate(var Username : string; var Password : string) : boolean;
     procedure DoHandshake;
     procedure AuthCallback(const Sender: TObject; AnAuthTarget: TAuthTargetType;
@@ -101,6 +132,9 @@ type
       const OnLogResponse : TMessageHandler = nil; const InitialClientID : string = '');
     destructor Destroy; override;
 
+    function GenerateResubPingMessage : IJSONObject; virtual;
+    function IsResubPingMessage(const jso : IJSONObject) : boolean; virtual;
+
     procedure Subscribe(const Channel : string; const OnMessage : TMessageHandler);
     procedure Unsubscribe(const Channel : string);
     procedure Publish(const Channel : string; const Msg : IJSONObject);
@@ -115,11 +149,12 @@ type
     property Interval : Cardinal read FInterval write FInterval;
     property Retry : Cardinal read FRetry write FRetry;
     property ClientID : string read GetClientID write SetClientID;
+    property ResubPing : integer read FResubPing write FResubPing;
   end;
 
 implementation
 
-uses System.Hash;
+uses System.Hash, System.DateUtils;
 
 type
   TListenerThread = class(TThread)
@@ -155,12 +190,13 @@ constructor TBayeuxClient.Create(const Endpoint: string; DeferConnect : boolean 
       const OnLogResponse : TMessageHandler = nil; const InitialClientID : string  = '');
 begin
   inherited Create;
+  FDispatcherCS := TMultiReadExclusiveWriteSynchronizer.Create;
   FClientIDCS := TMultiReadExclusiveWriteSynchronizer.Create;
   FCookieManager := TCookieManager.Create;
   FInterval := 0;
   FRetry := 5;
   FMessageID := 0;
-  FDispatcher := TDictionary<string, TMessageHandler>.Create;
+  FDispatcher := TDictionary<string, ISubHandler>.Create;
   FEndpoint := TURI.Create(Endpoint);
   FDeferConnect := DeferConnect;
   FOnHandshakeComplete := OnHandshakeComplete;
@@ -169,9 +205,48 @@ begin
   FClientID := InitialClientID;
   if not FDeferConnect then
     StartListener;
+
+  TThread.CreateAnonymousThread(
+    procedure
+    var
+      ary : TArray<TPair<string, ISubHandler>>;
+      p : TPair<string, ISubHandler>;
+    begin
+      repeat
+        if FResubPing > 0 then
+        begin
+          FDispatcherCS.BeginRead;
+          try
+            ary := FDispatcher.ToArray;
+          finally
+            FDispatcherCS.EndRead;
+          end;
+          for p in ary do
+          begin
+            if (not p.Value.SentPing) and
+               (SecondsBetween(p.Value.LastStamp, Now) > FResubPing) then
+            begin
+              Publish(p.Key,GenerateResubPingMessage);
+              p.Value.SentPing := True;
+              p.Value.LastStamp := Now;
+            end else if (p.Value.SentPing) and
+                        (SecondsBetween(p.Value.LastStamp, Now) > 10) then
+            begin
+              if ClientID <> '' then
+                Subscribe(p.Key, p.Value.Handler);
+            end;
+          end;
+        end;
+        sleep(500);
+      until TThread.CheckTerminated
+    end
+  ).Start;
 end;
 
 destructor TBayeuxClient.Destroy;
+var
+  ary : TArray<TPair<string, ISubHandler>>;
+  p : TPair<string, ISubHandler>;
 begin
   if Assigned(FListener) then
   begin
@@ -180,7 +255,9 @@ begin
     FreeAndNil(FListener);
   end;
 
+  FDispatcherCS.Free;
   FClientIDCS.Free;
+
   FDispatcher.Free;
   FCookieManager.Free;
   inherited;
@@ -351,6 +428,12 @@ begin
   Result := THashSHA1.GetHMAC(GuidToString(g),sDate);
 end;
 
+function TBayeuxClient.GenerateResubPingMessage: IJSONObject;
+begin
+  Result := JSON;
+  Result.Strings['message'] := '~chimera~bayeux~client~ping~';
+end;
+
 function TBayeuxClient.GetClientID: string;
 begin
   FClientIDCS.BeginRead;
@@ -367,7 +450,7 @@ var
 begin
   if ClientID <> '' then
   begin
-    result := True;
+    result := True;
     exit;
   end;
 
@@ -396,6 +479,13 @@ begin
     if Assigned(FOnUnsuccessful) then
       FOnUnsuccessful(jso);
   end;
+end;
+
+function TBayeuxClient.IsResubPingMessage(const jso: IJSONObject): boolean;
+begin
+  Result :=
+    jso.Has['message'] and
+    (jso.Strings['message'] = '~chimera~bayeux~client~ping~');
 end;
 
 function TBayeuxClient.NextID: string;
@@ -460,6 +550,7 @@ procedure TBayeuxClient.ProcessResponseObject(const obj: IJSONObject);
   end;
 var
   sChannel : string;
+  p : ISubHandler;
 begin
   if obj.Has['successful'] then
   begin
@@ -482,26 +573,40 @@ begin
         // Do Nothing
       end else if sChannel = META_UNSUBSCRIBE then
       begin
-        TThread.Queue(TThread.Current,
-          procedure
+        FDispatcherCS.BeginRead;
+        try
+          if FDispatcher.ContainsKey(obj.Strings['subscription']) then
           begin
-            if FDispatcher.ContainsKey(obj.Strings['subscription']) then
+            FDispatcherCS.BeginWrite;
+            try
               FDispatcher.Remove(obj.Strings['subscription']);
-          end
-        );
+            finally
+              FDispatcherCS.EndWrite;
+            end;
+          end;
+        finally
+          FDIspatcherCS.EndRead;
+        end;
       end else if sChannel = META_DISCONNECT then
       begin
         // Do Nothing
       end;
     end else if sChannel = META_SUBSCRIBE then
     begin
-      TThread.Queue(TThread.Current,
-        procedure
-        begin
+        FDispatcherCS.BeginRead;
+        try
           if FDispatcher.ContainsKey(obj.Strings['subscription']) then
-            FDispatcher.Remove(obj.Strings['subscription']);
-        end
-      );
+          begin
+            FDispatcherCS.BeginWrite;
+            try
+              FDispatcher.Remove(obj.Strings['subscription']);
+            finally
+              FDispatcherCS.EndWrite;
+            end;
+          end;
+        finally
+          FDIspatcherCS.EndRead;
+        end;
 
       DoOnUnsuccessful(obj);
    end else
@@ -510,13 +615,21 @@ begin
   begin
     if obj.Has['channel'] and obj.Has['data'] then
     begin
-      TThread.Queue(TThread.Current,
-        procedure
+      FDispatcherCS.BeginRead;
+      try
+        if IsResubPingMessage(obj.Objects['data']) then
         begin
-          if FDispatcher.ContainsKey(obj.Strings['channel']) then
-            FDispatcher[obj.Strings['channel']](obj.Objects['data']);
-        end
-      );
+          p.SentPing := False;
+          p.LastStamp := Now;
+        end else if FDispatcher.ContainsKey(obj.Strings['channel']) then
+        begin
+          p := FDispatcher[obj.Strings['channel']];
+          p.Handler(obj.Objects['data']);
+        end;
+
+     finally
+        FDIspatcherCS.EndRead;
+      end;
     end;
   end;
 end;
@@ -538,13 +651,18 @@ end;
 
 procedure TBayeuxClient.Resubscribe;
 var
-  p : TPair<string, TMessageHandler>;
-  ary : TArray<TPair<string, TMessageHandler>>;
+  p : TPair<string, ISubHandler>;
+  ary : TArray<TPair<string, ISubHandler>>;
 begin
-  ary := FDispatcher.ToArray;
+  FDispatcherCS.BeginRead;
+  try
+    ary := FDispatcher.ToArray;
+  finally
+    FDispatcherCS.EndRead;
+  end;
   for p in ary do
   begin
-    Subscribe(p.Key, p.Value);
+    Subscribe(p.Key, p.Value.Handler);
   end;
 end;
 
@@ -577,10 +695,10 @@ begin
     try
       if FClientID <> Value then
       begin
-        if FClientID <> '' then
-          Resubscribe;
         sOldID := FClientID;
         FClientID := Value;
+        if (Value <> '') then
+          Resubscribe;
         if Assigned(FOnClientIDChanged) then
           FOnClientIDChanged(sOldID, Value);
       end;
@@ -624,7 +742,12 @@ end;
 procedure TBayeuxClient.Subscribe(const Channel: string;
   const OnMessage: TMessageHandler);
 begin
-  FDispatcher.AddOrSetValue(Channel, OnMessage);
+  FDispatcherCS.BeginWrite;
+  try
+    FDispatcher.AddOrSetValue(Channel, TSubHandler.Create(OnMessage));
+  finally
+    FDIspatcherCS.EndWrite;
+  end;
   StartListener(
     procedure
     var
@@ -672,8 +795,21 @@ begin
         jso.Objects['ext'] := FExtension;
 
       SendMessage(jso);
-      if FDispatcher.ContainsKey(Channel) then
-        FDispatcher.Remove(Channel);
+
+      FDispatcherCS.BeginRead;
+      try
+        if FDispatcher.ContainsKey(Channel) then
+        begin
+          FDispatcherCS.BeginWrite;
+          try
+            FDispatcher.Remove(Channel);
+          finally
+            FDispatcherCS.EndWrite;
+          end;
+        end;
+      finally
+        FDIspatcherCS.EndRead;
+      end;
     end
   );
 end;
@@ -770,6 +906,48 @@ procedure TListenerThread.OnChunkReceived(Sender: TObject; Chunk: TStream);
 begin
   FOwner.ProcessResponseObject(JSON().LoadFromStream(Chunk));
   Chunk.Size := 0;
+end;
+
+{ TBayeuxClient.TSubHandler }
+
+constructor TBayeuxClient.TSubHandler.Create(const AHandler: TMessageHandler);
+begin
+  inherited Create;
+  FHandler := AHandler;
+  FLastStamp := Now;
+  FSentPing := False;
+end;
+
+function TBayeuxClient.TSubHandler.GetHandler: TMessageHandler;
+begin
+  FSentPing := False;
+  FLastStamp := Now;
+  Result := FHandler;
+end;
+
+function TBayeuxClient.TSubHandler.GetLastStamp: TDateTime;
+begin
+  Result := FLastStamp;
+end;
+
+function TBayeuxClient.TSubHandler.GetSentPing: boolean;
+begin
+  Result := FSentPing;
+end;
+
+procedure TBayeuxClient.TSubHandler.SetHandler(const Value: TMessageHandler);
+begin
+  FHandler := Value;
+end;
+
+procedure TBayeuxClient.TSubHandler.SetLastSTamp(const Value: TDateTime);
+begin
+  FLastStamp := Value;
+end;
+
+procedure TBayeuxClient.TSubHandler.SetSentPing(const Value: boolean);
+begin
+  FSentPing := Value;
 end;
 
 end.
