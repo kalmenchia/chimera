@@ -94,6 +94,7 @@ type
     function DoSendMessage(http : THTTPClient; const Msg : IJSONObject) : IJSONObject; virtual;
     procedure SendMessage(const Msg : IJSONObject); virtual;
     function NextID : string; virtual;
+    procedure Resubscribe;
   public
     constructor Create(const Endpoint : string; DeferConnect : boolean = false;
       const OnHandshakeComplete : TProc = nil; const OnLogMessage : TMessageHandler = nil;
@@ -535,6 +536,18 @@ begin
   SendMessage(jso);
 end;
 
+procedure TBayeuxClient.Resubscribe;
+var
+  p : TPair<string, TMessageHandler>;
+  ary : TArray<TPair<string, TMessageHandler>>;
+begin
+  ary := FDispatcher.ToArray;
+  for p in ary do
+  begin
+    Subscribe(p.Key, p.Value);
+  end;
+end;
+
 procedure TBayeuxClient.SendMessage(const Msg: IJSONObject);
 begin
   TThread.CreateAnonymousThread(
@@ -564,6 +577,8 @@ begin
     try
       if FClientID <> Value then
       begin
+        if FClientID <> '' then
+          Resubscribe;
         sOldID := FClientID;
         FClientID := Value;
         if Assigned(FOnClientIDChanged) then
