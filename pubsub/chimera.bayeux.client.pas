@@ -619,6 +619,7 @@ begin
       try
         if IsResubPingMessage(obj.Objects['data']) then
         begin
+          p := FDispatcher[obj.Strings['channel']];
           p.SentPing := False;
           p.LastStamp := Now;
         end else if FDispatcher.ContainsKey(obj.Strings['channel']) then
