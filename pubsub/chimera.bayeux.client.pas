@@ -212,30 +212,39 @@ begin
       ary : TArray<TPair<string, ISubHandler>>;
       p : TPair<string, ISubHandler>;
     begin
+      TThread.NameThreadForDebugging('SubscriptionPings');
       repeat
-        if FResubPing > 0 then
-        begin
-          FDispatcherCS.BeginRead;
-          try
-            ary := FDispatcher.ToArray;
-          finally
-            FDispatcherCS.EndRead;
-          end;
-          for p in ary do
+        try
+          if FResubPing > 0 then
           begin
-            if (not p.Value.SentPing) and
-               (SecondsBetween(p.Value.LastStamp, Now) > FResubPing) then
+            FDispatcherCS.BeginRead;
+            try
+              ary := FDispatcher.ToArray;
+            finally
+              FDispatcherCS.EndRead;
+            end;
+            for p in ary do
             begin
-              Publish(p.Key,GenerateResubPingMessage);
-              p.Value.SentPing := True;
-              p.Value.LastStamp := Now;
-            end else if (p.Value.SentPing) and
-                        (SecondsBetween(p.Value.LastStamp, Now) > 10) then
-            begin
-              if ClientID <> '' then
-                Subscribe(p.Key, p.Value.Handler);
+              if (not p.Value.SentPing) and
+                 (SecondsBetween(p.Value.LastStamp, Now) > FResubPing) then
+              begin
+                try
+                  Publish(p.Key,GenerateResubPingMessage);
+                finally
+                  p.Value.SentPing := True;
+                  p.Value.LastStamp := Now;
+                end;
+              end else if (p.Value.SentPing) and
+                          (SecondsBetween(p.Value.LastStamp, Now) > 10) then
+              begin
+                if ClientID <> '' then
+                  Subscribe(p.Key, p.Value.Handler);
+              end;
             end;
           end;
+        except
+          on e: exception do
+            DoLogVerbose('Ping Thread Error: "'+e.Message+'"');
         end;
         sleep(500);
       until TThread.CheckTerminated
@@ -835,6 +844,7 @@ procedure TListenerThread.Execute;
     begin
       if Terminated then
       begin
+        Result := False;
         exit;
       end;
       sleep(10);
@@ -876,26 +886,38 @@ begin
   try
     FOwner.SetupHTTP(http);
     //http.OnChunkReceived := OnChunkReceived;
-    if FOwner.Handshake(http) then
-    begin
-      http.CustomHeaders['Keep-Alive'] := 'max';
-      //http.CustomHeaders['Connection'] := 'close';
-      //http.TransferEncoding := 'chunked';
-      repeat
-        if Connect(http) then
+    repeat
+      try
+        if FOwner.Handshake(http) then
         begin
-          if Assigned(FOnReady) then
-            FOnReady();
-          FOnReady := nil;
-        end;
+          http.CustomHeaders['Keep-Alive'] := 'max';
+          //http.CustomHeaders['Connection'] := 'close';
+          //http.TransferEncoding := 'chunked';
+          repeat
+            if Connect(http) then
+            begin
+              if Assigned(FOnReady) then
+                FOnReady();
+              FOnReady := nil;
+            end;
 
-        FOwner.SynchronizeCookies(http);
+            FOwner.SynchronizeCookies(http);
 
-        if not WaitInterval then
+            if not WaitInterval then
+              break;
+          until (Terminated);
+
+        end else if not WaitInterval then
           break;
-      until (Terminated);
-
-    end;
+      except
+        on E: Exception do
+        begin
+          FOwner.DoLogVerbose('Main connection loop error "'+E.Message+'"');
+          if not WaitInterval then
+            break
+        end;
+      end;
+    until (Terminated);
   finally
 //    if assigned(http.CookieManager) then
 //      http.CookieManager.Free;
