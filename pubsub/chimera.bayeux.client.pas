@@ -41,6 +41,7 @@ type
   TMessageHandler = reference to procedure(const Msg : IJSONObject);
   TStringHandler = reference to procedure(const Msg : string);
   TClientIDHandler = reference to procedure(const OldID, NewID : string);
+  TErrorHandler = reference to procedure(const channel, error : string);
   TAuthenticateHandler = reference to procedure(var Username : String; var Password : string; var Authenticate : boolean);
   TBayeuxClient = class(TInterfacedObject)
   private const
@@ -105,8 +106,9 @@ type
     FOnLogVerbose: TStringHandler;
     FOnClientIDChanged: TClientIDHandler;
     FResubPing: integer;
+    FOnSubscribeError: TErrorHandler;
     function DoAuthenticate(var Username : string; var Password : string) : boolean;
-    procedure DoHandshake;
+    //procedure DoHandshake;
     procedure AuthCallback(const Sender: TObject; AnAuthTarget: TAuthTargetType;
       const ARealm, AURL: string; var AUserName, APassword: string; var AbortAuth: Boolean;
       var Persistence: TAuthPersistenceType);
@@ -123,7 +125,7 @@ type
     procedure StartListener(const OnReady : TProc = nil); virtual;
     function GenerateRandomID : string; virtual;
     function DoSendMessage(http : THTTPClient; const Msg : IJSONObject) : IJSONObject; virtual;
-    procedure SendMessage(const Msg : IJSONObject); virtual;
+    procedure SendMessage(const Msg : IJSONObject; OnError : TErrorHandler = nil); virtual;
     function NextID : string; virtual;
     procedure Resubscribe;
   public
@@ -143,6 +145,7 @@ type
     property OnAuthenticate : TAuthenticateHandler read FOnAuthenticate write FOnAuthenticate;
     property OnUnsuccessful : TMessageHandler read FOnUnsuccessful write FOnUnsuccessful;
     property OnClientIDChanged : TClientIDHandler read FOnClientIDChanged write FOnClientIDChanged;
+    property OnSubscribeError : TErrorHandler read FOnSubscribeError write FOnSubscribeError;
     property CookieManager : TCookieManager read FCookieManager;
     property OnLogVerbose : TStringHandler read FOnLogVerbose write FOnLogVerbose;
     property Extension : IJSONObject read FExtension;
@@ -253,9 +256,6 @@ begin
 end;
 
 destructor TBayeuxClient.Destroy;
-var
-  ary : TArray<TPair<string, ISubHandler>>;
-  p : TPair<string, ISubHandler>;
 begin
   if Assigned(FListener) then
   begin
@@ -279,7 +279,7 @@ begin
     OnAuthenticate(Username, Password, Result);
 end;
 
-procedure TBayeuxClient.DoHandshake;
+{procedure TBayeuxClient.DoHandshake;
 begin
   TThread.CreateAnonymousThread(
     procedure
@@ -300,7 +300,7 @@ begin
       end;
     end
   ).Start;
-end;
+end;}
 
 procedure TBayeuxClient.DoLogVerbose(const Msg : string);
 begin
@@ -676,18 +676,26 @@ begin
   end;
 end;
 
-procedure TBayeuxClient.SendMessage(const Msg: IJSONObject);
+procedure TBayeuxClient.SendMessage(const Msg: IJSONObject; OnError : TErrorHandler = nil);
 begin
   TThread.CreateAnonymousThread(
     procedure
     var
       http : THTTPClient;
+      jso : IJSONObject;
     begin
       http := THTTPClient.Create;
       try
         SetupHTTP(http);
 
-        DoSendMessage(http, Msg);
+        jso := DoSendMessage(http, Msg);
+        if Assigned(jso) and Msg.Has['channel'] and (Msg.Strings['channel'] = META_SUBSCRIBE) and jso.Has['successful'] and (not jso.Booleans['successful']) then
+        begin
+          if Assigned(OnError) then
+            OnError(Msg.Strings['subscription'], jso.Strings['error'])
+          else if Assigned(FOnSubscribeError) then
+            FOnSubscribeError(Msg.Strings['subscription'], jso.Strings['error']);
+        end;
 
         SynchronizeCookies(http);
       finally
@@ -770,7 +778,14 @@ begin
       if Assigned(FExtension) then
         jso.Objects['ext'] := FExtension;
 
-      SendMessage(jso);
+      SendMessage(jso,
+        procedure(const channel, error : string)
+        begin
+          if (not error.startsWith('401::')) or
+             (error.startsWith('401::') and (not error.toUpper.Contains('UNKNOWN CLIENT'))) then
+            Unsubscribe(Channel);
+        end
+      );
     end
   );
 end;
@@ -879,7 +894,6 @@ procedure TListenerThread.Execute;
   end;
 var
   http : THTTPClient;
-  sUser, sPass : string;
 begin
   NameThreadForDebugging('Bayeux Listener');
   http := THTTPClient.Create;
