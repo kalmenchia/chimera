@@ -513,9 +513,10 @@ begin
   begin
         case iErrorCode of
           401:
+          if obj.Strings['error'].toUpper.Contains('UNKNOWN CLIENT') then
           begin
-            DoLogVerbose('Connection Error: Unknown Client ID, Trying another Handshake.');
-            ClientID := '';
+              DoLogVerbose('Connection Error: Unknown Client ID, Trying another Handshake.');
+              ClientID := '';
           end else
            DoLogVerbose(obj.Strings['error']);
         end;
