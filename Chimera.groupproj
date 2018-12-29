@@ -3,6 +3,9 @@
         <ProjectGuid>{821A95D9-F24F-4779-A18A-129724DAD556}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
+        <Projects Include="utility\chimera.utility.runtime.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="json\chimera.json.runtime.dproj">
             <Dependencies/>
         </Projects>
@@ -33,9 +36,6 @@
         <Projects Include="storage\test\chimera.storage.test.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="utility\chimera.utility.runtime.dproj">
-            <Dependencies/>
-        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -44,6 +44,15 @@
             <Default.Personality/>
         </BorlandProject>
     </ProjectExtensions>
+    <Target Name="chimera_utility_runtime">
+        <MSBuild Projects="utility\chimera.utility.runtime.dproj"/>
+    </Target>
+    <Target Name="chimera_utility_runtime:Clean">
+        <MSBuild Projects="utility\chimera.utility.runtime.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="chimera_utility_runtime:Make">
+        <MSBuild Projects="utility\chimera.utility.runtime.dproj" Targets="Make"/>
+    </Target>
     <Target Name="chimera_json_runtime">
         <MSBuild Projects="json\chimera.json.runtime.dproj"/>
     </Target>
@@ -134,23 +143,14 @@
     <Target Name="chimera_storage_test:Make">
         <MSBuild Projects="storage\test\chimera.storage.test.dproj" Targets="Make"/>
     </Target>
-    <Target Name="chimera_utility_runtime">
-        <MSBuild Projects="utility\chimera.utility.runtime.dproj"/>
-    </Target>
-    <Target Name="chimera_utility_runtime:Clean">
-        <MSBuild Projects="utility\chimera.utility.runtime.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="chimera_utility_runtime:Make">
-        <MSBuild Projects="utility\chimera.utility.runtime.dproj" Targets="Make"/>
-    </Target>
     <Target Name="Build">
-        <CallTarget Targets="chimera_json_runtime;chimera_json_test_xplatform;chimera_pubsub_runtime;chimera_pubsub_indy_runtime;chimera_pubsub_webbroker_runtime;chimera_pubsub_test_xplatform;chimera_pubsub_designtime;chimera_storage_runtime;chimera_storage_local_runtime;chimera_storage_test;chimera_utility_runtime"/>
+        <CallTarget Targets="chimera_utility_runtime;chimera_json_runtime;chimera_json_test_xplatform;chimera_pubsub_runtime;chimera_pubsub_indy_runtime;chimera_pubsub_webbroker_runtime;chimera_pubsub_test_xplatform;chimera_pubsub_designtime;chimera_storage_runtime;chimera_storage_local_runtime;chimera_storage_test"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="chimera_json_runtime:Clean;chimera_json_test_xplatform:Clean;chimera_pubsub_runtime:Clean;chimera_pubsub_indy_runtime:Clean;chimera_pubsub_webbroker_runtime:Clean;chimera_pubsub_test_xplatform:Clean;chimera_pubsub_designtime:Clean;chimera_storage_runtime:Clean;chimera_storage_local_runtime:Clean;chimera_storage_test:Clean;chimera_utility_runtime:Clean"/>
+        <CallTarget Targets="chimera_utility_runtime:Clean;chimera_json_runtime:Clean;chimera_json_test_xplatform:Clean;chimera_pubsub_runtime:Clean;chimera_pubsub_indy_runtime:Clean;chimera_pubsub_webbroker_runtime:Clean;chimera_pubsub_test_xplatform:Clean;chimera_pubsub_designtime:Clean;chimera_storage_runtime:Clean;chimera_storage_local_runtime:Clean;chimera_storage_test:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="chimera_json_runtime:Make;chimera_json_test_xplatform:Make;chimera_pubsub_runtime:Make;chimera_pubsub_indy_runtime:Make;chimera_pubsub_webbroker_runtime:Make;chimera_pubsub_test_xplatform:Make;chimera_pubsub_designtime:Make;chimera_storage_runtime:Make;chimera_storage_local_runtime:Make;chimera_storage_test:Make;chimera_utility_runtime:Make"/>
+        <CallTarget Targets="chimera_utility_runtime:Make;chimera_json_runtime:Make;chimera_json_test_xplatform:Make;chimera_pubsub_runtime:Make;chimera_pubsub_indy_runtime:Make;chimera_pubsub_webbroker_runtime:Make;chimera_pubsub_test_xplatform:Make;chimera_pubsub_designtime:Make;chimera_storage_runtime:Make;chimera_storage_local_runtime:Make;chimera_storage_test:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

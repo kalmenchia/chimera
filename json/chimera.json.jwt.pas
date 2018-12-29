@@ -101,7 +101,7 @@ var
   enc : TBase64Encoding;
   i: Integer;
 begin
-  enc := TBase64Encoding.Create(High(Cardinal));
+  enc := TBase64Encoding.Create(High(Integer));
   try
     result := enc.EncodeBytesToString(TEncoding.UTF8.GetBytes(Data));
   finally
@@ -120,7 +120,7 @@ var
   enc : TBase64Encoding;
   i: Integer;
 begin
-  enc := TBase64Encoding.Create(High(Cardinal));
+  enc := TBase64Encoding.Create(High(Integer));
   try
     result := enc.EncodeBytesToString(Data);
   finally
