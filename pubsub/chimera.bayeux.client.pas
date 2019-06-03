@@ -80,7 +80,6 @@ type
         property SentPing : boolean read GetSentPing write SetSentPing;
       end;
   strict private
-    FEndpoint: TURI;
     FClientIDCS : TMultiReadExclusiveWriteSynchronizer;
     FClientID : string;
     FListener : TThread;
@@ -120,7 +119,6 @@ type
     function GetClientID: string;
 
     procedure SetClientID(const Value: string);
-    procedure DoLogVerbose(const Msg: string);
     procedure DoOnUnsuccessful(const obj: IJSONObject);  protected
     procedure StartListener(const OnReady : TProc = nil); virtual;
     function GenerateRandomID : string; virtual;
@@ -128,6 +126,11 @@ type
     procedure SendMessage(const Msg : IJSONObject; OnError : TErrorHandler = nil); virtual;
     function NextID : string; virtual;
     procedure Resubscribe;
+  protected
+    FEndpoint: TURI;
+
+    procedure DoLogVerbose(const Msg: string);
+
   public
     constructor Create(const Endpoint : string; DeferConnect : boolean = false;
       const OnHandshakeComplete : TProc = nil; const OnLogMessage : TMessageHandler = nil;
@@ -214,8 +217,11 @@ begin
     var
       ary : TArray<TPair<string, ISubHandler>>;
       p : TPair<string, ISubHandler>;
+      DoNothing:Integer;
     begin
       TThread.NameThreadForDebugging('SubscriptionPings');
+      DoLogVerbose('Bayeux Thread SubscriptionPings Start');
+
       repeat
         try
           if FResubPing > 0 then
@@ -232,6 +238,7 @@ begin
                  (SecondsBetween(p.Value.LastStamp, Now) > FResubPing) then
               begin
                 try
+                  DoLogVerbose('Bayeux Thread SubscriptionPings:GenerateResubPingMessage');
                   Publish(p.Key,GenerateResubPingMessage);
                 finally
                   p.Value.SentPing := True;
@@ -241,16 +248,33 @@ begin
                           (SecondsBetween(p.Value.LastStamp, Now) > 10) then
               begin
                 if ClientID <> '' then
+                begin
+                  DoLogVerbose('Bayeux Thread Subscribe ClientID='+ClientID);
                   Subscribe(p.Key, p.Value.Handler);
+                end
+                else
+                  DoLogVerbose('Bayeux Thread ClientID blank');
+
               end;
             end;
+          end else
+          begin
+             Inc(DoNothing);
+             if (DoNothing mod 1000 = 1) then
+                  DoLogVerbose('Bayeux Client ID Shifting logic is NOT enabled');
+
           end;
         except
-          on e: exception do
-            DoLogVerbose('Ping Thread Error: "'+e.Message+'"');
+          on e: exception
+          do
+          begin
+            DoLogVerbose('Ping Thread Error: '+e.ClassName+' "'+e.Message+'"');
+          end;
         end;
         sleep(500);
-      until TThread.CheckTerminated
+      until TThread.CheckTerminated ;
+      DoLogVerbose('Bayeux Thread SubscriptionPings End');
+
     end
   ).Start;
 end;
@@ -305,7 +329,7 @@ end;}
 procedure TBayeuxClient.DoLogVerbose(const Msg : string);
 begin
   if Assigned(FOnLogVerbose) then
-    FOnLogVerbose('Invalid Response: ' + Msg);
+    FOnLogVerbose('[TBayeuxClient] ' + Msg);
 end;
 
 function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) : IJSONObject;
