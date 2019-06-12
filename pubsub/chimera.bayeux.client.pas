@@ -43,6 +43,9 @@ type
   TClientIDHandler = reference to procedure(const OldID, NewID : string);
   TErrorHandler = reference to procedure(const channel, error : string);
   TAuthenticateHandler = reference to procedure(var Username : String; var Password : string; var Authenticate : boolean);
+
+  EBayeuxException = class(Exception);
+
   TBayeuxClient = class(TInterfacedObject)
   private const
     META_HANDSHAKE   = '/meta/handshake';
@@ -131,6 +134,8 @@ type
 
     procedure DoLogVerbose(const Msg: string);
 
+    function HandshakeChecker :Boolean; virtual;
+
   public
     constructor Create(const Endpoint : string; DeferConnect : boolean = false;
       const OnHandshakeComplete : TProc = nil; const OnLogMessage : TMessageHandler = nil;
@@ -211,6 +216,11 @@ begin
   FClientID := InitialClientID;
   if not FDeferConnect then
     StartListener;
+
+  {$ifdef BAYEUX_VERBOSE_TRACE}
+  DoLogVerbose('TBayeuxClient.Create');
+  {$endif}
+
 
   TThread.CreateAnonymousThread(
     procedure
@@ -298,9 +308,20 @@ end;
 
 function TBayeuxClient.DoAuthenticate(var Username, Password: string): boolean;
 begin
+
+{$ifdef BAYEUX_VERBOSE_TRACE}
+  DoLogVerbose('TBayeuxClient.DoAuthenticate '+Username);
+  {$endif}
+
   Result := Assigned(FOnAuthenticate);
   if Result then
+  begin
+
+  {$ifdef BAYEUX_VERBOSE_TRACE}
+  DoLogVerbose('TBayeuxClient.OnAuthenticate '+Username);
+  {$endif}
     OnAuthenticate(Username, Password, Result);
+  end;
 end;
 
 {procedure TBayeuxClient.DoHandshake;
@@ -332,6 +353,11 @@ begin
     FOnLogVerbose('[TBayeuxClient] ' + Msg);
 end;
 
+function TBayeuxClient.HandshakeChecker :Boolean;
+begin
+  Result := true;
+end;
+
 function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) : IJSONObject;
   function ProcessAsObject(ss : TStringStream) : IJSONObject;
   begin
@@ -358,18 +384,27 @@ function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) 
   var
     i : integer;
   begin
+    DoLogVerbose('WaitForRetry begins');
+
     Result := True;
     for i := Retry*100 downto 0 do
     begin
       if TListenerThread(TThread.Current).Terminated then
       begin
+        DoLogVerbose('WaitForRetry terminated');
+
         Result := False;
         Abort;
       end;
       sleep(10);
     end;
+
+
     if TListenerThread(TThread.Current).Terminated then
       Abort;
+
+      DoLogVerbose('WaitForRetry ends');
+
   end;
 
   function DoSend: IJSONObject;
@@ -429,10 +464,13 @@ function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) 
           ssResponse.Free;
           ssSource.Free;
         end;
+        DoLogVerbose('DoSend BREAK');
+
         break;
       except
         on e: exception do
         begin
+          DoLogVerbose('DoSend EX '+E.ClassName+' '+E.Message);
           jsoError := JSON();
           jsoError.Booleans['successful'] := false;
           jsoError.Strings['error'] := 'Local Send Message Error: '+e.Message;
@@ -481,6 +519,9 @@ function TBayeuxClient.Handshake(http: THTTPClient) : boolean;
 var
   jso : IJSONObject;
 begin
+    DoLogVerbose('TBayeuxClient.Handshake ');
+
+
   if ClientID <> '' then
   begin
     result := True;
@@ -498,9 +539,11 @@ begin
     Result := jso.Booleans['successful']
   else
   begin
-    raise Exception.Create('Invalid Response from Server.');
+    raise EBayeuxException.Create('Invalid Response from Server.');
 
   end;
+  DoLogVerbose('TBayeuxClient.Handshake '+jso.AsJSON() );
+
   if Result then
   begin
     DoLogVerbose('Handshake Complete');
@@ -673,6 +716,11 @@ procedure TBayeuxClient.Publish(const Channel: string; const Msg: IJSONObject);
 var
   jso: IJSONObject;
 begin
+
+  {$ifdef BAYEUX_VERBOSE_TRACE}
+  DoLogVerbose('TBayeuxClient.Publish('+Channel+'...)');
+  {$endif}
+
   jso := JSON;
   jso.Strings['channel'] := Channel;
   jso.Objects['data'] := Msg;
@@ -689,6 +737,10 @@ var
   p : TPair<string, ISubHandler>;
   ary : TArray<TPair<string, ISubHandler>>;
 begin
+  if not Self.HandshakeChecker then
+        raise EBayeuxException.Create('Cannot resubscribe while handshaking');
+
+
   FDispatcherCS.BeginRead;
   try
     ary := FDispatcher.ToArray;
@@ -713,16 +765,43 @@ begin
       try
         SetupHTTP(http);
 
+
+  {$ifdef BAYEUX_VERBOSE_TRACE}
+  DoLogVerbose('TBayeuxClient.Send '+MSG.AsJSON() );
+  {$endif}
+
+
         jso := DoSendMessage(http, Msg);
         if Assigned(jso) and Msg.Has['channel'] and (Msg.Strings['channel'] = META_SUBSCRIBE) and jso.Has['successful'] and (not jso.Booleans['successful']) then
         begin
           if Assigned(OnError) then
+          begin
+            {$ifdef BAYEUX_VERBOSE_TRACE}
+            DoLogVerbose('TBayeuxClient.Send ERROR '+MSG.AsJSON() );
+            {$endif}
+
             OnError(Msg.Strings['subscription'], jso.Strings['error'])
+          end
           else if Assigned(FOnSubscribeError) then
+          begin
+            {$ifdef BAYEUX_VERBOSE_TRACE}
+            DoLogVerbose('TBayeuxClient.Send SUBERROR '+MSG.AsJSON() );
+            {$endif}
+
+
             FOnSubscribeError(Msg.Strings['subscription'], jso.Strings['error']);
+          end;
         end;
+        {$ifdef BAYEUX_VERBOSE_TRACE}
+            DoLogVerbose('TBayeuxClient.Send sync '+MSG.AsJSON() );
+        {$endif}
 
         SynchronizeCookies(http);
+        {$ifdef BAYEUX_VERBOSE_TRACE}
+            DoLogVerbose('TBayeuxClient.Send ending '+MSG.AsJSON() );
+        {$endif}
+
+
       finally
         http.Free;
       end;
@@ -741,7 +820,8 @@ begin
         sOldID := FClientID;
         FClientID := Value;
         if (Value <> '') then
-          Resubscribe;
+            if HandshakeChecker then
+                Resubscribe;
         if Assigned(FOnClientIDChanged) then
           FOnClientIDChanged(sOldID, Value);
       end;
@@ -749,7 +829,7 @@ begin
       FClientIDCS.EndWrite;
     end
   else
-    raise Exception.Create('Could not set ClientID');
+    raise EBayeuxException.Create('Could not set ClientID');
 end;
 
 procedure TBayeuxClient.SetupHTTP(http: THTTPClient);
@@ -803,6 +883,9 @@ begin
       if Assigned(FExtension) then
         jso.Objects['ext'] := FExtension;
 
+      if not HandshakeChecker then
+            DoLogVerbose('SendMessage of META_SUBSCRIBE STARTING before handshake');
+
       SendMessage(jso,
         procedure(const channel, error : string)
         begin
@@ -832,6 +915,11 @@ end;
 
 procedure TBayeuxClient.Unsubscribe(const Channel: string);
 begin
+{$ifdef BAYEUX_VERBOSE_TRACE}
+  DoLogVerbose('TBayeuxClient.Unsubscribe '+Channel);
+  {$endif}
+
+
   StartListener(
     procedure
     var
@@ -860,6 +948,10 @@ begin
       finally
         FDIspatcherCS.EndRead;
       end;
+      {$ifdef BAYEUX_VERBOSE_TRACE}
+        DoLogVerbose('TBayeuxClient.Unsubscribe '+Channel+' ends');
+      {$endif}
+
     end
   );
 end;
