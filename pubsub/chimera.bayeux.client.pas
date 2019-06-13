@@ -131,6 +131,8 @@ type
     procedure Resubscribe;
   protected
     FEndpoint: TURI;
+    FHandshakeSuccessCount:Int64;
+
 
     procedure DoLogVerbose(const Msg: string);
 
@@ -355,7 +357,7 @@ end;
 
 function TBayeuxClient.HandshakeChecker :Boolean;
 begin
-  Result := true;
+  Result := (FHandshakeSuccessCount>0);
 
   DoLogVerbose('TBayeuxClient.HandshakeChecker '+BoolToStr(Result));
 
@@ -551,6 +553,7 @@ begin
   if Result then
   begin
     DoLogVerbose('Handshake Complete');
+    Inc(FHandshakeSuccessCount);
     if Assigned(FOnHandshakeComplete) then
       FOnHandshakeComplete();
   end else
