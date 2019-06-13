@@ -4,7 +4,7 @@
 //
 // PubSub Chimera project for Delphi
 //
-// Copyright (c) 2014 by Sivv Corp, All Rights Reserved
+// Copyright (c) 2014-2019 by Sivv Corp, All Rights Reserved
 //
 // Information about this product can be found at
 // http://arcana.sivv.com/chimera
@@ -356,6 +356,10 @@ end;
 function TBayeuxClient.HandshakeChecker :Boolean;
 begin
   Result := true;
+
+  DoLogVerbose('TBayeuxClient.HandshakeChecker '+BoolToStr(Result));
+
+
 end;
 
 function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) : IJSONObject;
