@@ -842,7 +842,8 @@ end;
 procedure TBayeuxClient.SetupHTTP(http: THTTPClient);
 begin
   http.AllowCookies := True;
-  http.CookieManager := TCookieManager.Create;
+  if NOT Assigned(http.CookieManager) then
+    http.CookieManager := TCookieManager.Create;
   http.HandleRedirects := True;
   //http.ProtocolVersion := TIdHTTPProtocolVersion.pv1_1;
   http.ContentType := 'application/json';
