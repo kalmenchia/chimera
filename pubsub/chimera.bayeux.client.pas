@@ -34,7 +34,8 @@ unit chimera.bayeux.client;
 interface
 
 uses System.SysUtils, System.Classes, System.Generics.Collections, chimera.json,
-  System.Threading, System.Net.HTTPClient, System.Net.URLClient, System.SyncObjs;
+  System.Threading, System.Net.HTTPClient, System.Net.URLClient, System.SyncObjs,
+  System.NetConsts;
 
 type
   TRetryMode = (retry, handshake, none);
@@ -234,7 +235,7 @@ begin
     begin
       TThread.NameThreadForDebugging('SubscriptionPings');
       DoLogVerbose('Bayeux Thread SubscriptionPings Start');
-
+      DoNothing := 0;
       repeat
         try
           if FResubPing > 0 then
