@@ -109,6 +109,7 @@ type
     FOnClientIDChanged: TClientIDHandler;
     FResubPing: integer;
     FOnSubscribeError: TErrorHandler;
+    ResubPingerThread: TThread;
     function DoAuthenticate(var Username : string; var Password : string) : boolean;
     //procedure DoHandshake;
     procedure AuthCallback(const Sender: TObject; AnAuthTarget: TAuthTargetType;
@@ -224,7 +225,7 @@ begin
   {$endif}
 
 
-  TThread.CreateAnonymousThread(
+  ResubPingerThread := TThread.CreateAnonymousThread(
     procedure
     var
       ary : TArray<TPair<string, ISubHandler>>;
@@ -288,11 +289,15 @@ begin
       DoLogVerbose('Bayeux Thread SubscriptionPings End');
 
     end
-  ).Start;
+  );
+  ResubPingerThread.Start;
 end;
 
 destructor TBayeuxClient.Destroy;
 begin
+  if Assigned(ResubPingerThread) then
+    ResubPingerThread.Terminate;
+
   if Assigned(FListener) then
   begin
     FListener.Terminate;
