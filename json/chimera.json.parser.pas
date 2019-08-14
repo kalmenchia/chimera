@@ -199,8 +199,9 @@ begin
           begin
             if (FText.Chars[i-1] <> '\') then
               break;
-            if (FText.Chars[i-2] = '\') then
-              break;
+
+            {if (FText.Chars[i-2] = '\') then
+              break;} // breaks double nested stringified json objects.  Not sure why this was being done but watch out for breakage elsewhere.
             FTmpValue.Append('"');
           end else
           begin
