@@ -132,8 +132,9 @@ function TParser.GetToken: boolean;
 var
   d : Double;
   b : boolean;
-  i : integer;
+  i, iCnt : integer;
   iStart : integer;
+  j: Integer;
 begin
   FTmpIdent.Clear;
   while FIndex <= FTextLength do
@@ -145,20 +146,25 @@ begin
       FTmpIdent.Append(FText.Chars[FIndex]);
       break;
     end else if (FText.Chars[FIndex] <= Char($20)) then
-      continue
-    else if (FText.Chars[FIndex].IsLetterOrDigit) or (FText.Chars[FIndex]='-') then
+    begin
+      continue;
+    end else if (FText.Chars[FIndex].IsLetterOrDigit) or (FText.Chars[FIndex]='-') then
     begin
       // Is an identifier or value
       iStart := FIndex;
       while (FIndex < FTextLength) do
       begin
         if ( not CharInSet(FText.Chars[FIndex], ['0'..'9', 'A'..'Z','a'..'z','.', '-'])) then //.isLetterOrDigit(FText[FIndex])) and (FText[FIndex] <> FFmt.DecimalSeparator)) then
+        begin
           break;
+        end;
         if (FIndex > iStart) then
         begin
           if ( not CharInSet(FText.Chars[FIndex-1], ['0'..'9', 'A'..'Z','a'..'z','.', '-'])) then //.isLetterOrDigit(FText[FIndex])) and (FText[FIndex] <> FFmt.DecimalSeparator)) then
+          begin
         //if (FIndex > iStart) and (( not TCharacter.isLetterOrDigit(FText[FIndex-1])) and (FText[FIndex-1] <> FFmt.DecimalSeparator)) then
             break;
+          end;
           FTmpIdent.Append(FText.Chars[FIndex-1]);
           FTmpIdent.Append(FText.Chars[FIndex]);
         end else
@@ -168,9 +174,10 @@ begin
         inc(FIndex,2); // marginally faster to skip by twos, moreso on big tokens
       end;
       if (FIndex > iStart) and ( not CharInSet(FText.Chars[FIndex-1], ['0'..'9', 'A'..'Z','a'..'z','.', '-'])) then //.isLetterOrDigit(FText[FIndex])) and (FText[FIndex] <> FFmt.DecimalSeparator)) then
+      begin
       //if (FIndex > iStart) and ( not TCharacter.isLetterOrDigit(FText[FIndex-1])) and (FText[FIndex-1] <> FFmt.DecimalSeparator) then
         dec(FIndex)
-      else
+      end else
       begin
         FTmpIdent.Append(FText.Chars[FIndex-1]);
       end;
@@ -191,6 +198,7 @@ begin
       ':': FToken := TParseToken.Colon;
       '"':
       begin
+
         FToken := TParseToken.String;
         FTmpValue.Clear;
         for i := FIndex+1 to FTextLength do
@@ -198,11 +206,25 @@ begin
           if (FText.Chars[i] = '"') then
           begin
             if (FText.Chars[i-1] <> '\') then
+            begin
               break;
+            end;
 
-            {if (FText.Chars[i-2] = '\') then
-              break;} // breaks double nested stringified json objects.  Not sure why this was being done but watch out for breakage elsewhere.
-            FTmpValue.Append('"');
+            iCnt := 1;
+            for j := i-2 downto 0 do
+            begin
+              if FText.Chars[j] = '\' then
+                inc(iCnt)
+              else
+                break;
+            end;
+            if (iCnt mod 2) <> 0 then
+            begin
+              FTmpValue.Append('"');
+            end else
+            begin
+              break;
+            end;
           end else
           begin
             FTmpValue.Append(FText.Chars[i]);
