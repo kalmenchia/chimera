@@ -2335,6 +2335,7 @@ begin
     fs := TFileStream.Create(Filename, fmOpenWrite or fmShareDenyWrite)
   else
     fs := TFileStream.Create(Filename, fmCreate or fmShareDenyWrite);
+  fs.Size := 0;
   try
     SaveToStream(fs, Whitespace);
   finally
@@ -2350,6 +2351,7 @@ begin
     fs := TFileStream.Create(Filename, fmOpenWrite or fmShareDenyWrite)
   else
     fs := TFileStream.Create(Filename, fmCreate or fmShareDenyWrite);
+  fs.Size := 0;
   try
     SaveToStream(Name, fs, Decode);
   finally
