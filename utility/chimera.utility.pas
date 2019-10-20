@@ -28,8 +28,6 @@ const
   PLATFORM_LIBRARY_EXT = '.dynlib';
 {$ENDIF}
 
-
-resourcestring
   S_LIBRARY_NOT_FOUND = 'Library "%s" not found.';
 
 implementation
@@ -47,7 +45,7 @@ begin
   {$IF Defined(MSWINDOWS)}
     FHandle := LoadLibrary(PChar(ModuleName));
   {$ELSEIF Defined(POSIX)}
-    FHandle := DLOpen(ModuleName, RTLD_LOCAL | RTLD_LAZY));
+    FHandle := DLOpen(@(TEncoding.UTF8.GetBytes(ModuleName)[0]), RTLD_LOCAL or RTLD_LAZY);
   {$ENDIF}
   if FHandle = 0 then
     raise Exception.Create(Format(S_LIBRARY_NOT_FOUND,[ModuleName]));
@@ -69,7 +67,7 @@ begin
   {$IF Defined(MSWINDOWS)}
     Result := GetProcAddress(FHandle, PChar(ExportName));
   {$ELSEIF Defined(POSIX)}
-    Result := DLSym(FHandle, ExportName);
+    Result := DLSym(FHandle, @(TEncoding.UTF8.GetBytes(ExportName)[0]));
   {$ENDIF}
 end;
 
