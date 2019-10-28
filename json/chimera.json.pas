@@ -33,7 +33,10 @@ unit chimera.json;
 
 interface
 
-uses System.SysUtils, System.Classes;
+{$I chimera.inc}
+
+uses System.SysUtils, System.Classes, System.JSON
+  {$IFDEF USEFASTCODE}, FastStringBuilder{$ENDIF};
 
 type
 {$SCOPEDENUMS ON}
@@ -47,6 +50,12 @@ type
 
   TChangeObjectHandler = reference to procedure(const obj : IJSONObject);
   TChangeArrayHandler = reference to procedure(const ary : IJSONArray);
+  TDuplicateResolution = (Skip, Overwrite);
+  TDuplicateHandler = reference to function(const prop : string) : TDuplicateResolution;
+
+  EChimeraException = class(Exception);
+
+  EChimeraJSONException = class(EChimeraException);
 
   TWhitespace = (compact, standard);
 
@@ -70,7 +79,7 @@ type
     constructor InitializeCode(const Value : String);
     function AsJSON : string; overload;
     procedure AsJSON(var Result : string); overload;
-    procedure AsJSON(Result : TStringBuilder); overload;
+    procedure AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder); overload;
     function ToVariant : Variant;
   end;
 
@@ -84,6 +93,7 @@ type
     function GetCount: integer;
     function GetNumber(const idx: integer): Double;
     function GetDate(const idx: integer): TDateTime;
+    function GetLocalDate(const idx: integer): TDateTime;
     function GetIntDate(const idx: integer): TDateTime;
     function GetInteger(const idx: integer): Int64;
     function GetItem(const idx: integer): Variant;
@@ -91,10 +101,15 @@ type
     function GetObject(const idx: integer): IJSONObject;
     function GetArray(const idx: integer): IJSONArray;
     function GetType(const idx: integer): TJSONValueType;
+    function GetBytes(const idx : integer) : TArray<Byte>;
+    function GetGUID(const idx : integer) : TGuid;
+    function GetValue(const idx : integer) : PMultiValue;
+
     procedure SetBoolean(const idx: integer; const Value: Boolean);
     procedure SetCount(const Value: integer);
     procedure SetNumber(const idx: integer; const Value: Double);
     procedure SetDate(const idx: integer; const Value: TDateTime);
+    procedure SetLocalDate(const idx: integer; const Value: TDateTime);
     procedure SetIntDate(const idx: integer; const Value: TDateTime);
     procedure SetInteger(const idx: integer; const Value: Int64);
     procedure SetItem(const idx: integer; const Value: Variant);
@@ -102,6 +117,8 @@ type
     procedure SetArray(const idx: integer; const Value: IJSONArray);
     procedure SetObject(const idx: integer; const Value: IJSONObject);
     procedure SetType(const idx: integer; const Value: TJSONValueType);
+    procedure SetBytes(const idx : integer; const Value : TArray<Byte>);
+    procedure SetGuid(const idx : integer; const Value : TGUID);
     //procedure ParentOverride(parent : IJSONArray); overload;
     //procedure ParentOverride(parent : IJSONObject); overload;
 
@@ -116,8 +133,10 @@ type
     procedure Add(const value : IJSONArray); overload;
     procedure Add(const value : IJSONObject); overload;
     procedure Add(const value : Variant); overload;
+    procedure Add(const value : TArray<Byte>); overload;
     procedure AddNull;
     procedure AddCode(const value : string);
+    procedure Merge(const &Array : IJSONArray);
     procedure Delete(const idx : integer);
     procedure Clear;
 
@@ -145,7 +164,13 @@ type
 
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
-    procedure AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    function CreateRTLArray : System.JSON.TJSONArray;
+
+    function LoadFromStream(idx : integer; Stream : TStream; Encode : boolean) : IJSONObject; overload;
+    function LoadFromStream(Stream : TStream; Encode : boolean) : IJSONObject; overload;
+    procedure SaveToStream(Stream: TStream; Decode : boolean); overload;
+    procedure SaveToStream(idx : integer; Stream: TStream; Decode : boolean); overload;
 
     procedure Each(proc : TProcConst<string>); overload;
     procedure Each(proc : TProcConst<double>); overload;
@@ -154,13 +179,17 @@ type
     procedure Each(proc : TProcConst<IJSONObject>); overload;
     procedure Each(proc : TProcConst<IJSONArray>); overload;
     procedure Each(proc : TProcConst<Variant>); overload;
+    procedure Each(proc : TProcConst<PMultiValue>); overload;
 
     //function ParentArray : IJSONArray;
     //function ParentObject : IJSONObject;
 
+    property GUIDs[const idx : integer] : TGUID read GetGuid write SetGuid;
+    property Bytes[const idx : integer] : TArray<Byte> read GetBytes write SetBytes;
     property Strings[const idx : integer] : string read GetString write SetString;
     property Numbers[const idx : integer] : Double read GetNumber write SetNumber;
     property Dates[const idx : integer] : TDateTime read GetDate write SetDate;
+    property LocalDates[const idx : integer] : TDateTime read GetLocalDate write SetLocalDate;
     property IntDates[const idx : integer] : TDateTime read GetIntDate write SetIntDate;
     property Integers[const idx : integer] : Int64 read GetInteger write SetInteger;
     property Booleans[const idx : integer] : Boolean read GetBoolean write SetBoolean;
@@ -168,6 +197,7 @@ type
     property Arrays[const idx : integer] : IJSONArray read GetArray write SetArray;
     property Items[const idx : integer] : Variant read GetItem write SetItem; default;
     property Types[const idx : integer] : TJSONValueType read GetType write SetType;
+    property Values[const idx : integer] : PMultiValue read GetValue;
     property Count : integer read GetCount write SetCount;
   end;
 
@@ -182,6 +212,7 @@ type
     function GetCount: integer;
     function GetNumber(const name : string): Double;
     function GetDate(const name : string): TDateTime;
+    function GetLocalDate(const name : string): TDateTime;
     function GetIntDate(const name : string): TDateTime;
     function GetInteger(const name : string): Int64;
     function GetItem(const name : string): Variant;
@@ -190,9 +221,14 @@ type
     function GetArray(const name : string): IJSONArray;
     function GetType(const name : string): TJSONValueType;
     function GetName(const idx : integer): string;
+    function GetBytes(const name : string): TArray<Byte>;
+    function GetGuid(const name : string) : TGuid;
+    function GetValue(const name : string) : PMultiValue;
+
     procedure SetBoolean(const name : string; const Value: Boolean);
     procedure SetNumber(const name : string; const Value: Double);
     procedure SetDate(const name : string; const Value: TDateTime);
+    procedure SetLocalDate(const name : string; const Value: TDateTime);
     procedure SetIntDate(const name : string; const Value: TDateTime);
     procedure SetInteger(const name : string; const Value: Int64);
     procedure SetItem(const name : string; const Value: Variant);
@@ -200,6 +236,8 @@ type
     procedure SetArray(const name : string; const Value: IJSONArray);
     procedure SetObject(const name : string; const Value: IJSONObject);
     procedure SetType(const name : string; const Value: TJSONValueType);
+    procedure SetBytes(const name : string; const Value: TArray<Byte>);
+    procedure SetGuid(const name : String; const Value : TGuid);
     //procedure ParentOverride(parent : IJSONArray); overload;
     //procedure ParentOverride(parent : IJSONObject); overload;
 
@@ -222,12 +260,19 @@ type
     procedure Add(const name : string; const value : IJSONArray); overload;
     procedure Add(const name : string; const value : IJSONObject); overload;
     procedure Add(const name : string; const value : Variant); overload;
+    procedure Add(const name : string; const value : TArray<Byte>); overload;
     procedure Remove(const name : string);
     procedure AddNull(const name : string);
     procedure AddCode(const name : string; const value : string);
+
+    procedure Merge(const &object : IJSONObject; OnDuplicate : TDuplicateHandler = nil);
+    function SameAs(CompareTo : IJSONObject) : boolean;
+    function AsSHA1(Whitespace : TWhitespace = TWhitespace.Standard) : string;
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
-    procedure AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    function CreateRTLObject : System.JSON.TJSONObject;
+
     procedure Reload(const Source : string);
     procedure Clear;
     property OnChange : TChangeObjectHandler read GetOnChange write SetOnChange;
@@ -236,16 +281,23 @@ type
     procedure DoChangeNotify;
 
     function Equals(const obj : IJSONObject) : boolean;
-    function LoadFromStream(Stream : TStream) : IJSONObject;
-    function LoadFromFile(Filename : string) : IJSONObject;
-    procedure SaveToStream(Stream : TStream; Whitespace : TWhitespace = TWhitespace.Standard);
-    procedure SaveToFile(Filename : string; Whitespace : TWhitespace = TWhitespace.Standard);
+    function LoadFromStream(const Name : String; Stream : TStream; Encode : boolean) : IJSONObject; overload;
+    function LoadFromStream(Stream : TStream) : IJSONObject; overload;
+    function LoadFromFile(const Name, Filename : string; Encode : boolean) : IJSONObject; overload;
+    function LoadFromFile(const Filename : string) : IJSONObject; overload;
+    procedure SaveToStream(const name : string; Stream : TStream; Decode : boolean); overload;
+    procedure SaveToStream(Stream : TStream; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure SaveToFile(const Name, Filename : string; Decode : boolean); overload;
+    procedure SaveToFile(const Filename : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     //function ParentArray : IJSONArray;
     //function ParentObject : IJSONObject;
 
+    property GUIDs[const name : string] : TGuid read GetGuid write SetGuid;
+    property Bytes[const name : string] : TArray<Byte> read GetBytes write SetBytes;
     property Strings[const name : string] : string read GetString write SetString;
     property Numbers[const name : string] : Double read GetNumber write SetNumber;
     property Dates[const name : string] : TDateTime read GetDate write SetDate;
+    property LocalDates[const name : string] : TDateTime read GetLocalDate write SetLocalDate;
     property IntDates[const name : string] : TDateTime read GetIntDate write SetIntDate;
     property Integers[const name : string] : Int64 read GetInteger write SetInteger;
     property Booleans[const name : string] : Boolean read GetBoolean write SetBoolean;
@@ -253,6 +305,7 @@ type
     property Arrays[const name : string] : IJSONArray read GetArray write SetArray;
     property Items[const name : string] : Variant read GetItem write SetItem; default;
     property Types[const name : string] : TJSONValueType read GetType write SetType;
+    property Values[const name : string] : PMultiValue read GetValue;
     property Count : integer read GetCount;
     property Names[const idx : integer] : string read GetName;
     property Has[const name : string] : boolean read GetHas;
@@ -269,7 +322,8 @@ function JSONValueTypeToString(t : TJSONValueTYpe) : string;
 implementation
 
 uses System.Variants, System.Generics.Collections, chimera.json.parser,
-  System.StrUtils, System.DateUtils;
+  System.StrUtils, System.DateUtils, System.TimeSpan, System.NetEncoding,
+  System.Hash;
 
 function JSONValueTypeToString(t : TJSONValueTYpe) : string;
 begin
@@ -303,6 +357,7 @@ type
     function GetCount: integer;
     function GetNumber(const idx: integer): Double;
     function GetDate(const idx: Integer): TDateTime;
+    function GetLocalDate(const idx: Integer): TDateTime;
     function GetIntDate(const idx: Integer): TDateTime;
     function GetInteger(const idx: integer): Int64;
     function GetItem(const idx: integer): Variant;
@@ -310,10 +365,17 @@ type
     function GetObject(const idx: integer): IJSONObject;
     function GetArray(const idx: integer): IJSONArray;
     function GetType(const idx: integer): TJSONValueType;
+    function GetBytes(const idx : integer) : TArray<Byte>;
+    function GetGuid(const idx : integer) : TGuid;
+    function GetValue(const idx : integer) : PMultiValue;
+
+    procedure SetGuid(const idx : integer; const Value : TGUID);
+    procedure SetBytes(const idx: integer; const Value: TArray<Byte>);
     procedure SetBoolean(const idx: integer; const Value: Boolean);
     procedure SetCount(const Value: integer);
     procedure SetNumber(const idx: integer; const Value: Double);
     procedure SetDate(const idx: Integer; const Value: TDateTime);
+    procedure SetLocalDate(const idx: Integer; const Value: TDateTime);
     procedure SetIntDate(const idx: Integer; const Value: TDateTime);
     procedure SetInteger(const idx: integer; const Value: Int64);
     procedure SetItem(const idx: integer; const Value: Variant);
@@ -334,6 +396,11 @@ type
     procedure Remove(const value : PMultiValue); overload;
     property Raw[const idx: integer] : PMultiValue read GetRaw write SetRaw;
 
+    function LoadFromStream(idx : integer; Stream : TStream; Encode : boolean) : IJSONObject; overload;
+    function LoadFromStream(Stream : TStream; Encode : boolean) : IJSONObject; overload;
+    procedure SaveToStream(Stream: TStream; Decode : boolean); overload;
+    procedure SaveToStream(idx : integer; Stream: TStream; Decode : boolean); overload;
+
     procedure Each(proc : TProcConst<string>); overload;
     procedure Each(proc : TProcConst<double>); overload;
     procedure Each(proc : TProcConst<int64>); overload;
@@ -341,6 +408,7 @@ type
     procedure Each(proc : TProcConst<IJSONObject>); overload;
     procedure Each(proc : TProcConst<IJSONArray>); overload;
     procedure Each(proc : TProcConst<Variant>); overload;
+    procedure Each(proc : TProcConst<PMultiValue>); overload;
 
     procedure Add(const value : string); overload;
     procedure Add(const value : double); overload;
@@ -349,11 +417,16 @@ type
     procedure Add(const value : IJSONArray); overload;
     procedure Add(const value : IJSONObject); overload;
     procedure Add(const value : Variant); overload;
+    procedure Add(const value : TArray<Byte>); overload;
     procedure AddNull;
     procedure AddCode(const value : string);
+    procedure Merge(const &Array : IJSONArray);
+
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
-    procedure AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    function CreateRTLArray: System.JSON.TJSONArray;
+
     procedure Delete(const idx: Integer);
     procedure Clear;
 
@@ -379,10 +452,13 @@ type
 
     function Equals(const obj : IJSONArray) : boolean; reintroduce;
 
+    property GUIDs[const idx : integer] : TGuid read GetGuid write SetGuid;
+    property Bytes[const idx : integer] : TArray<Byte> read GetBytes write SetBytes;
     property Strings[const idx : integer] : string read GetString write SetString;
     property Numbers[const idx : integer] : Double read GetNumber write SetNumber;
     property Dates[const idx : integer] : TDateTime read GetDate write SetDate;
-    property IntDates[const idx : integer] : TDateTime read GetDate write SetDate;
+    property LocalDates[const idx : integer] : TDateTime read GetLocalDate write SetLocalDate;
+    property IntDates[const idx : integer] : TDateTime read GetIntDate write SetIntDate;
     property Integers[const idx : integer] : Int64 read GetInteger write SetInteger;
     property Booleans[const idx : integer] : Boolean read GetBoolean write SetBoolean;
     property Objects[const idx : integer] : IJSONObject read GetObject write SetObject;
@@ -390,9 +466,7 @@ type
     property Items[const idx : integer] : Variant read GetItem write SetItem; default;
     property Types[const idx : integer] : TJSONValueType read GetType write SetType;
     property Count : integer read GetCount write SetCount;
-  public
-    //constructor Create(Parent : IJSONObject); overload; virtual;
-    //constructor Create(Parent : IJSONArray); overload; virtual;
+
     constructor Create; overload; virtual;
     destructor Destroy; override;
   end;
@@ -411,6 +485,7 @@ type
     function GetCount: integer;
     function GetNumber(const name : string): Double;
     function GetDate(const name : string): TDateTime;
+    function GetLocalDate(const name : string): TDateTime;
     function GetIntDate(const name : string): TDateTime;
     function GetInteger(const name : string): Int64;
     function GetItem(const name : string): Variant;
@@ -419,9 +494,16 @@ type
     function GetArray(const name : string): IJSONArray;
     function GetType(const name : string): TJSONValueType;
     function GetName(const idx : integer): string;
+    function GetBytes(const name : string): TArray<Byte>;
+    function GetGuid(const name: string): TGuid;
+    function GetValue(const name: string) : PMultiValue;
+
+    procedure SetGuid(const name: string; const Value: TGuid);
+    procedure SetBytes(const name : string; const Value: TArray<Byte>);
     procedure SetBoolean(const name : string; const Value: Boolean);
     procedure SetNumber(const name : string; const Value: Double);
     procedure SetDate(const name : string; const Value: TDateTime);
+    procedure SetLocalDate(const name : string; const Value: TDateTime);
     procedure SetIntDate(const name : string; const Value: TDateTime);
     procedure SetInteger(const name : string; const Value: Int64);
     procedure SetItem(const name : string; const Value: Variant);
@@ -461,16 +543,27 @@ type
     procedure Add(const name : string; const value : IJSONArray); overload;
     procedure Add(const name : string; const value : IJSONObject); overload;
     procedure Add(const name : string; const value : Variant); overload;
+    procedure Add(const name : string; const value : TArray<Byte>); overload;
     procedure AddNull(const name : string);
     procedure AddCode(const name : string; const value : string);
+
+    procedure Merge(const &object : IJSONObject; OnDuplicate : TDuplicateHandler = nil);
+    function SameAs(CompareTo : IJSONObject) : boolean;
+    function AsSHA1(Whitespace : TWhitespace = TWhitespace.Standard) : string;
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
-    procedure AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    function CreateRTLObject: System.JSON.TJSONObject;
+
     procedure Remove(const name: string);
-    function LoadFromStream(Stream : TStream) : IJSONObject;
-    function LoadFromFile(Filename : string) : IJSONObject;
-    procedure SaveToStream(Stream : TStream; Whitespace : TWhitespace = TWhitespace.Standard);
-    procedure SaveToFile(Filename : string; Whitespace : TWhitespace = TWhitespace.Standard);
+    function LoadFromStream(const Name : String; Stream : TStream; Encode : boolean) : IJSONObject; overload;
+    function LoadFromStream(Stream : TStream) : IJSONObject; overload;
+    function LoadFromFile(const Name, Filename : string; Encode : boolean) : IJSONObject; overload;
+    function LoadFromFile(const Filename : string) : IJSONObject; overload;
+    procedure SaveToStream(const Name : string; Stream : TStream; Decode : boolean); overload;
+    procedure SaveToStream(Stream : TStream; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure SaveToFile(const Name, Filename : string; Decode : boolean); overload;
+    procedure SaveToFile(const Filename : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     property OnChange : TChangeObjectHandler read GetOnChange write SetOnChange;
     procedure BeginUpdates;
     procedure EndUpdates;
@@ -481,9 +574,12 @@ type
 
     function Equals(const obj : IJSONObject) : boolean; reintroduce;
 
+    property GUIDs[const name : string] : TGuid read GetGuid write SetGuid;
+    property Bytes[const name : string] : TArray<Byte> read GetBytes write SetBytes;
     property Strings[const name : string] : string read GetString write SetString;
     property Numbers[const name : string] : Double read GetNumber write SetNumber;
     property Dates[const name : string] : TDateTime read GetDate write SetDate;
+    property LocalDates[const name : string] : TDateTime read GetLocalDate write SetLocalDate;
     property IntDates[const name : string] : TDateTime read GetIntDate write SetIntDate;
     property Integers[const name : string] : Int64 read GetInteger write SetInteger;
     property Booleans[const name : string] : Boolean read GetBoolean write SetBoolean;
@@ -494,7 +590,7 @@ type
     property Count : integer read GetCount;
     property Names[const idx : integer] : string read GetName;
     property Has[const name : string] : boolean read GetHas;
-  public
+
     constructor Create; overload; virtual;
     destructor Destroy; override;
   end;
@@ -523,6 +619,14 @@ begin
   end;
 end;
 
+function IsValidLocalDate(Value : TDateTime) : boolean;
+var
+  TimeZone: TTimeZone;
+begin
+  TimeZone := TTimeZone.Local;
+  Result := (Double(Value) * 1000) + TimeZone.UtcOffset.TotalMilliseconds >= 0;
+end;
+
 function StringIsJSON(const str : string) : boolean;
 begin
   result := (str <> '') and (str[1] = '{') and (str[length(str)] = '}')
@@ -540,11 +644,11 @@ function FormatJSON(const src : string; Indent : Byte = 3) : string;
   end;
 var
   i, iSize,  iLevel : integer;
-  sb : TStringBuilder;
+  sb : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
   bInString : boolean;
 begin
   iLevel := 0;
-  sb := TStringBuilder.Create(src);
+  sb := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create(src);
   try
     i := 0;
     bInString := False;
@@ -606,9 +710,9 @@ end;
 function JSONEncode(const str : string) : string;
 var
   i : integer;
-  sb : TStringBuilder;
+  sb : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
 begin
-  sb := TStringBuilder.Create;
+  sb := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create;
   try
     for i := 0 to str.Length-1 do
     begin
@@ -634,7 +738,7 @@ begin
         #13: begin
           sb.append('\r');
         end;
-        else if Ord(str.Chars[i]) > 255 then
+        else if (Ord(str.Chars[i]) > 255) or (Ord(str.Chars[i]) < 32) then
         begin
           sb.append('\u'+IntToHex(Ord(str.Chars[i]),4));
         end else
@@ -651,9 +755,9 @@ function JSONDecode(const str : string) : string;
 var
   i : integer;
   ichar : integer;
-  sb : TStringBuilder;
+  sb : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
 begin
-  sb := TStringBuilder.Create;
+  sb := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create;
   try
     i := 0;
     while i < str.length-1 do
@@ -709,7 +813,7 @@ begin
         not (t2 in [TJSONValueType.&string, TJSONValueType.number, TJSONValueType.&object])) or
        ((t2 = TJSONValueType.null) and
         not (t1 in [TJSONValueType.&string, TJSONValueType.number, TJSONValueType.&object])) then
-    raise Exception.Create('Value is not of required type: '+JSonValueTypeToString(t1)+' <> '+JSONValueTypeToString(t2));
+    raise EChimeraJSONException.Create('Value is not of required type: '+JSonValueTypeToString(t1)+' <> '+JSONValueTypeToString(t2));
 end;
 
 function JSON(const src : string) : IJSONObject;
@@ -833,7 +937,7 @@ begin
   Result := Result+']';
 end;
 
-procedure TJSONArray.AsJSON(Result : TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
+procedure TJSONArray.AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   i: Integer;
 begin
@@ -880,6 +984,11 @@ constructor TJSONArray.Create;
 begin
   inherited Create;
   FValues := TList<PMultiValue>.Create;
+end;
+
+function TJSONArray.CreateRTLArray: System.JSON.TJSONArray;
+begin
+  Result := System.JSON.TJSONArray(System.JSON.TJSONObject.ParseJSONValue(TEncoding.UTF8.GetBytes(AsJSON),0));
 end;
 
 destructor TJSONArray.Destroy;
@@ -1025,14 +1134,29 @@ begin
   Result := FValues.Items[idx].IntegerValue <> 0;
 end;
 
+function TJSONArray.GetBytes(const idx: integer): TArray<Byte>;
+begin
+  Result := TNetEncoding.Base64.Decode(TEncoding.UTF8.GetBytes(Strings[idx]));
+end;
+
 function TJSONArray.GetCount: integer;
 begin
   Result := FValues.Count;
 end;
 
 function TJSONArray.GetDate(const idx: Integer): TDateTime;
+var
+  TempDate: TDateTime;
 begin
-  Result := ISO8601ToDate(GetString(idx));
+  Result := 0.0;
+  if TryISO8601ToDate(GetString(idx),TempDate) then
+    Result := TempDate;
+//  Result := ISO8601ToDate(GetString(idx));
+end;
+
+function TJSONArray.GetGuid(const idx: integer): TGuid;
+begin
+  Result := StringToGuid(Strings[idx]);
 end;
 
 function TJSONArray.GetNumber(const idx: integer): Double;
@@ -1056,6 +1180,16 @@ function TJSONArray.GetItem(const idx: integer): Variant;
 begin
   EnsureSize(idx);
   Result := FValues.Items[idx].ToVariant;
+end;
+
+function TJSONArray.GetLocalDate(const idx: Integer): TDateTime;
+var
+  TempDate: TDateTime;
+begin
+  Result := 0.0;
+  if TryISO8601ToDate(GetString(idx),TempDate,false) then
+    Result := TempDate;
+  //Result := ISO8601ToDate(GetString(idx),false);
 end;
 
 function TJSONArray.GetObject(const idx: integer): IJSONObject;
@@ -1083,6 +1217,11 @@ end;
 function TJSONArray.GetType(const idx: integer): TJSONValueType;
 begin
   Result := FValues.Items[idx].ValueType;
+end;
+
+function TJSONArray.GetValue(const idx: integer): PMultiValue;
+begin
+  Result := FValues[idx];
 end;
 
 function TJSONArray.IndexOf(const value: int64): integer;
@@ -1174,6 +1313,73 @@ begin
       result := i;
       break;
     end;
+  end;
+end;
+
+function TJSONArray.LoadFromStream(idx: integer; Stream: TStream;
+  Encode: boolean): IJSONObject;
+var
+  data : TArray<Byte>;
+  d : Double;
+begin
+  if not Encode then
+    case Types[idx] of
+      TJSONValueType.&string:
+      begin
+        SetLength(data, Stream.Size - Stream.Position);
+        Stream.Read(data, Stream.Size - Stream.Position);
+        Strings[idx] := TEncoding.UTF8.GetString(data);
+      end;
+      TJSONValueType.number:
+        begin
+          Stream.Read(d, SizeOf(Double));
+          Numbers[idx] := d;
+        end;
+      TJSONValueType.&array:
+        begin
+          Raw[idx]^.ArrayValue.LoadFromStream(Stream, Encode);
+        end;
+      TJSONValueType.&object:
+      begin
+        SetLength(data, Stream.Size - Stream.Position);
+        Stream.Read(data, Stream.Size - Stream.Position);
+        Raw[idx]^.ObjectValue := JSON(TEncoding.UTF8.GetString(data));
+      end;
+      TJSONValueType.boolean:
+        begin
+          SetLength(data,1);
+          Stream.Read(data,1);
+          Booleans[idx] := data[0] <> 0;
+        end
+      else
+        exit; // skip null, code
+    end
+  else
+  begin
+    SetLength(data, Stream.Size - Stream.Position);
+    Stream.Read(data, Stream.Size - Stream.Position);
+    Bytes[idx] := data;
+  end;
+end;
+
+function TJSONArray.LoadFromStream(Stream: TStream;
+  Encode: boolean): IJSONObject;
+var
+  i: Integer;
+begin
+  for i := 0 to FValues.Count-1 do
+  begin
+    LoadFromStream(i, Stream, Encode);
+  end;
+end;
+
+procedure TJSONArray.Merge(const &Array: IJSONArray);
+var
+  i : integer;
+begin
+  for i := 0 to &Array.Count-1 do
+  begin
+    FValues.Add(&Array.Values[i]);
   end;
 end;
 
@@ -1269,7 +1475,7 @@ begin
       begin
         bRemove := FValues[i].ArrayValue.AsJSON = jsa.AsJSON;
       end else
-        raise Exception.Create('Unknown variant type.');
+        raise EChimeraJSONException.Create('Unknown variant type.');
     end else
       case VarType(Value) of
         varSmallInt,
@@ -1316,7 +1522,7 @@ begin
         end;
 
         else
-          raise Exception.Create('Unknown variant type.');
+          raise EChimeraJSONException.Create('Unknown variant type.');
       end;
       if bRemove then
         FValues.Delete(i);
@@ -1376,6 +1582,57 @@ begin
   FValues.Delete(idx);
 end;
 
+procedure TJSONArray.SaveToStream(Stream: TStream; Decode: boolean);
+var
+  i: Integer;
+begin
+  for i := 0 to FValues.Count-1 do
+  begin
+    SaveToStream(i, Stream, Decode);
+  end;
+end;
+
+procedure TJSONArray.SaveToStream(idx: integer; Stream: TStream;
+  Decode: boolean);
+var
+  data : TArray<Byte>;
+  d : Double;
+begin
+  if not Decode then
+    case Types[idx] of
+      TJSONValueType.&string:
+        data := TEncoding.UTF8.GetBytes(Strings[idx]);
+      TJSONValueType.number:
+        begin
+          SetLength(Data, SizeOf(Double));
+          d := Raw[idx]^.NumberValue;
+          Stream.WriteData(@d, SizeOf(Double));
+          exit;
+        end;
+      TJSONValueType.&array:
+        begin
+          Raw[idx]^.ArrayValue.SaveToStream(Stream, Decode);
+          exit;
+        end;
+      TJSONValueType.&object:
+        data := TEncoding.UTF8.GetBytes(Objects[idx].AsJSON);
+      TJSONValueType.boolean:
+        begin
+          SetLength(data,1);
+          if Booleans[idx] then
+            data[0] := 1
+          else
+            data[0] := 0;
+        end
+      else
+        exit; // skip null, code
+    end
+  else
+    data := TNetEncoding.Base64.Decode(TEncoding.UTF8.GetBytes(Strings[idx]));
+
+  Stream.Write(data, length(data));
+end;
+
 procedure TJSONArray.SetArray(const idx: integer; const Value: IJSONArray);
 var
   pmv : PMultiValue;
@@ -1399,6 +1656,11 @@ begin
   DoChangeNotify;
 end;
 
+procedure TJSONArray.SetBytes(const idx: integer; const Value: TArray<Byte>);
+begin
+  Strings[idx] := TEncoding.UTF8.GetString(TNetEncoding.Base64.Encode(Value));
+end;
+
 procedure TJSONArray.SetCount(const Value: integer);
 begin
   EnsureSize(Value);
@@ -1410,6 +1672,11 @@ end;
 procedure TJSONArray.SetDate(const idx: Integer; const Value: TDateTime);
 begin
   SetString(idx, DateToISO8601(Value));
+end;
+
+procedure TJSONArray.SetGuid(const idx: integer; const Value: TGUID);
+begin
+  Strings[idx] := GuidToString(Value);
 end;
 
 procedure TJSONArray.SetNumber(const idx: integer; const Value: Double);
@@ -1444,6 +1711,14 @@ begin
   EnsureSize(idx);
   FValues.Items[idx].Initialize(Value);
   DoChangeNotify;
+end;
+
+procedure TJSONArray.SetLocalDate(const idx: Integer; const Value: TDateTime);
+begin
+  if IsValidLocalDate(Value) then
+    SetString(idx, DateToISO8601(Value,false))
+  else
+    SetString(idx, DateToISO8601(0,True));
 end;
 
 procedure TJSONArray.SetObject(const idx: integer; const Value: IJSONObject);
@@ -1517,6 +1792,19 @@ begin
   DoChangeNotify;
 end;
 
+procedure TJSONArray.Add(const value: TArray<Byte>);
+begin
+  Add(TEncoding.UTF8.GetString(TNetEncoding.Base64.Encode(Value)));
+end;
+
+procedure TJSONArray.Each(proc: TProcConst<PMultiValue>);
+var
+  i: Integer;
+begin
+  for i := 0 to FValues.Count-1 do
+    proc(FValues[i]);
+end;
+
 { TJSONObject }
 
 procedure TJSONObject.Add(const name: string; const value: double);
@@ -1571,9 +1859,9 @@ end;
 
 function TJSONObject.AsJSON(Whitespace : TWhitespace = TWhitespace.Standard): string;
 var
-  sb : TStringBuilder;
+  sb : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
 begin
-  sb := TStringBuilder.Create;
+  sb := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create;
   try
     AsJSON(sb, Whitespace);
     Result := sb.ToString;
@@ -1601,7 +1889,7 @@ begin
   Result := Result+'}';
 end;
 
-procedure TJSONObject.AsJSON(Result: TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
+procedure TJSONObject.AsJSON(Result: {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   item : TPair<string, PMultiValue>;
   bFirst : boolean;
@@ -1620,6 +1908,15 @@ begin
   Result.Append('}');
 end;
 
+
+function TJSONObject.AsSHA1(Whitespace: TWhitespace): string;
+var
+  LSHA2: THashSHA1;
+begin
+  LSHA2 := THashSHA1.Create;
+  LSHA2.Update(TEncoding.UTF8.GetBytes(AsJSON(Whitespace)));
+  Result := LSHA2.HashAsString.ToUpper;
+end;
 
 procedure TJSONObject.BeginUpdates;
 begin
@@ -1642,6 +1939,11 @@ begin
   inherited Create;
   FValues := TDictionary<string, PMultiValue>.Create;
   FValues.OnValueNotify := DisposeOfValue;
+end;
+
+function TJSONObject.CreateRTLObject: System.JSON.TJSONObject;
+begin
+  Result := System.JSON.TJSONObject(System.JSON.TJSONObject.ParseJSONValue(TEncoding.UTF8.GetBytes(AsJSON),0));
 end;
 
 destructor TJSONObject.Destroy;
@@ -1777,14 +2079,29 @@ begin
   Result := ValueOf[Name].IntegerValue <> 0;
 end;
 
+function TJSONObject.GetBytes(const name: string): TArray<Byte>;
+begin
+  Result := TNetEncoding.Base64.Decode(TEncoding.UTF8.GetBytes(Strings[name]));
+end;
+
 function TJSONObject.GetCount: integer;
 begin
   Result := FValues.Count;
 end;
 
 function TJSONObject.GetDate(const name: string): TDateTime;
+var
+  TempDate: TDateTime;
 begin
-  Result := ISO8601ToDate(GetString(name));
+  Result := 0.0;
+  if TryISO8601ToDate(GetString(name),TempDate) then
+    Result := TempDate;
+  //Result := ISO8601ToDate(GetString(name));
+end;
+
+function TJSONObject.GetGuid(const name: string): TGuid;
+begin
+  Result := StringToGuid(Strings[name]);
 end;
 
 function TJSONObject.GetHas(const name: string): boolean;
@@ -1812,6 +2129,16 @@ end;
 function TJSONObject.GetItem(const name: string): Variant;
 begin
   Result := ValueOf[Name].ToVariant;
+end;
+
+function TJSONObject.GetLocalDate(const name: string): TDateTime;
+var
+  TempDate: TDateTime;
+begin
+  Result := 0.0;
+  if TryISO8601ToDate(GetString(name),TempDate,false) then
+    Result := TempDate;
+//  Result := ISO8601ToDate(GetString(name),false);
 end;
 
 function TJSONObject.GetName(const idx: integer): string;
@@ -1848,24 +2175,88 @@ begin
 end;
 
 
+function TJSONObject.GetValue(const name: string): PMultiValue;
+begin
+  Result := FValues[name];
+end;
+
 function TJSONObject.GetValueOf(const name: string): PMultiValue;
 begin
   if FValues.ContainsKey(name) then
     result := FValues[name]
   else
-    raise Exception.Create('Object is missing the "'+name+'" property.');
+    raise EChimeraJSONException.Create('Object is missing the "'+name+'" property.');
 
 end;
 
-function TJSONObject.LoadFromFile(Filename: string) : IJSONObject;
+function TJSONObject.LoadFromFile(const Filename: string) : IJSONObject;
 var
   fs : TFileStream;
 begin
-  fs := TFileStream.Create(Filename, fmOpenRead);
+  fs := TFileStream.Create(Filename, fmOpenRead or fmShareDenyNone);
   try
     Result := LoadFromStream(fs);
   finally
     fs.Free;
+  end;
+end;
+
+function TJSONObject.LoadFromFile(const Name, Filename: string;
+  Encode: boolean): IJSONObject;
+var
+  fs : TFileStream;
+begin
+  fs := TFileStream.Create(Filename, fmOpenRead or fmShareDenyNone);
+  try
+    Result := LoadFromStream(Name, fs, Encode);
+  finally
+    fs.Free;
+  end;
+end;
+
+function TJSONObject.LoadFromStream(const Name: String; Stream: TStream;
+  Encode: boolean): IJSONObject;
+var
+  data : TArray<Byte>;
+  d : Double;
+begin
+  if not Encode then
+    case Types[Name] of
+      TJSONValueType.&string:
+      begin
+        SetLength(data, Stream.Size - Stream.Position);
+        Stream.Read(data, Stream.Size - Stream.Position);
+        Strings[Name] := TEncoding.UTF8.GetString(data);
+      end;
+      TJSONValueType.number:
+        begin
+          Stream.Read(d, SizeOf(Double));
+          Numbers[Name] := d;
+        end;
+      TJSONValueType.&array:
+        begin
+          Raw[Name]^.ArrayValue.LoadFromStream(Stream, Encode);
+        end;
+      TJSONValueType.&object:
+      begin
+        SetLength(data, Stream.Size - Stream.Position);
+        Stream.Read(data, Stream.Size - Stream.Position);
+        Raw[Name]^.ObjectValue := JSON(TEncoding.UTF8.GetString(data));
+      end;
+      TJSONValueType.boolean:
+        begin
+          SetLength(data,1);
+          Stream.Read(data,1);
+          Booleans[Name] := data[0] <> 0;
+        end
+      else
+        exit; // skip null, code
+    end
+  else
+  begin
+    SetLength(data, Stream.Size - Stream.Position);
+    Stream.Read(data, Stream.Size - Stream.Position);
+    Bytes[Name] := data;
   end;
 end;
 
@@ -1884,6 +2275,41 @@ begin
 end;
 
 
+procedure TJSONObject.Merge(const &object: IJSONObject; OnDuplicate: TDuplicateHandler = nil);
+begin
+  &Object.Each(
+    procedure(const Prop : string; const val : PMultiValue)
+    var
+      bOk : boolean;
+    begin
+      if Has[Prop] and Assigned(OnDuplicate) then
+        bOK := OnDuplicate(Prop) = TDuplicateResolution.Overwrite
+      else
+        bOK := True;
+      if bOK then
+        case &Object.Types[Prop] of
+          TJSONValueType.&string:
+            Strings[Prop] := &Object.Strings[Prop];
+          TJSONValueType.number:
+            Numbers[Prop] := &Object.Numbers[Prop];
+          TJSONValueType.&array:
+            Arrays[Prop] := &Object.Arrays[Prop];
+          TJSONValueType.&object:
+            Objects[Prop] := &Object.Objects[Prop];
+          TJSONValueType.boolean:
+            Booleans[Prop] := &Object.Booleans[Prop];
+          TJSONValueType.null:
+          begin
+            Remove(Prop);
+            AddNull(Prop);
+          end;
+          TJSONValueType.code:
+            Raw[Prop] := &Object.Raw[Prop];
+        end;
+    end
+  );
+end;
+
 procedure TJSONObject.Reload(const Source: string);
 begin
   Clear;
@@ -1896,11 +2322,20 @@ begin
   FValues.Remove(name);
 end;
 
-procedure TJSONObject.SaveToFile(Filename: string; Whitespace : TWhitespace = TWhitespace.Standard);
+function TJSONObject.SameAs(CompareTo: IJSONObject): boolean;
+begin
+  Result := AsSHA1 = CompareTo.AsSHA1;
+end;
+
+procedure TJSONObject.SaveToFile(const Filename: string; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   fs : TFileStream;
 begin
-  fs := TFileStream.Create(Filename, fmOpenReadWrite or fmCreate);
+  if FileExists(Filename) then
+    fs := TFileStream.Create(Filename, fmOpenWrite or fmShareDenyWrite)
+  else
+    fs := TFileStream.Create(Filename, fmCreate or fmShareDenyWrite);
+  fs.Size := 0;
   try
     SaveToStream(fs, Whitespace);
   finally
@@ -1908,12 +2343,68 @@ begin
   end;
 end;
 
+procedure TJSONObject.SaveToFile(const Name, Filename: string; Decode : boolean);
+var
+  fs : TFileStream;
+begin
+  if FileExists(Filename) then
+    fs := TFileStream.Create(Filename, fmOpenWrite or fmShareDenyWrite)
+  else
+    fs := TFileStream.Create(Filename, fmCreate or fmShareDenyWrite);
+  fs.Size := 0;
+  try
+    SaveToStream(Name, fs, Decode);
+  finally
+    fs.Free;
+  end;
+end;
+
+procedure TJSONObject.SaveToStream(const Name: string; Stream: TStream; Decode : boolean);
+var
+  data : TArray<Byte>;
+  d : Double;
+begin
+  if not Decode then
+    case Types[name] of
+      TJSONValueType.&string:
+        data := TEncoding.UTF8.GetBytes(Strings[name]);
+      TJSONValueType.number:
+        begin
+          SetLength(Data, SizeOf(Double));
+          d := Raw[Name]^.NumberValue;
+          Stream.WriteData(@d, SizeOf(Double));
+          exit;
+        end;
+      TJSONValueType.&array:
+        begin
+          Raw[Name]^.ArrayValue.SaveToStream(Stream, Decode);
+          exit;
+        end;
+      TJSONValueType.&object:
+        data := TEncoding.UTF8.GetBytes(Objects[name].AsJSON);
+      TJSONValueType.boolean:
+        begin
+          SetLength(data,1);
+          if Booleans[name] then
+            data[0] := 1
+          else
+            data[0] := 0;
+        end
+      else
+        exit; // skip null, code
+    end
+  else
+    data := TNetEncoding.Base64.Decode(TEncoding.UTF8.GetBytes(Strings[name]));
+
+  Stream.Write(data, length(data));
+end;
+
 procedure TJSONObject.SaveToStream(Stream: TStream; Whitespace : TWhitespace = TWhitespace.Standard);
 var
-  sb : TStringBuilder;
+  sb : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
   bytes : TArray<Byte>;
 begin
-  sb := TStringBuilder.Create;
+  sb := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create;
   try
     AsJSON(sb, Whitespace);
     bytes := TEncoding.UTF8.GetBytes(sb.ToString);
@@ -1944,9 +2435,19 @@ begin
   DoChangeNotify;
 end;
 
+procedure TJSONObject.SetBytes(const name: string; const Value: TArray<Byte>);
+begin
+  Strings[name] := TEncoding.UTF8.GetString(TNetEncoding.Base64.Encode(Value));
+end;
+
 procedure TJSONObject.SetDate(const name: string; const Value: TDateTime);
 begin
   SetString(name, DateToISO8601(Value));
+end;
+
+procedure TJSONObject.SetGuid(const name: string; const Value: TGuid);
+begin
+  Strings[name] := GuidToString(Value);
 end;
 
 procedure TJSONObject.SetNumber(const name: string; const Value: Double);
@@ -1986,6 +2487,14 @@ begin
   end else
     ValueOf[Name].Initialize(Value, true);
   DoChangeNotify;
+end;
+
+procedure TJSONObject.SetLocalDate(const name: string; const Value: TDateTime);
+begin
+  if IsValidLocalDate(Value) then
+    SetString(name, DateToISO8601(Value,false))
+  else
+    SetString(name, DateToISO8601(0,True));
 end;
 
 procedure TJSONObject.SetObject(const name: string; const Value: IJSONObject);
@@ -2065,6 +2574,11 @@ begin
   DoChangeNotify;
 end;
 
+procedure TJSONObject.Add(const name: string; const value: TArray<Byte>);
+begin
+  Add(name, TEncoding.UTF8.GetString(TNetEncoding.Base64.Encode(Value)));
+end;
+
 { TMultiValue }
 
 constructor TMultiValue.Initialize(const Value: Double; encode : boolean = false);
@@ -2106,10 +2620,19 @@ begin
         Result := Result+FloatToStr(Self.NumberValue);
     TJSONValueType.array:
     begin
-      Self.ArrayValue.AsJSON(Result);
+      if Assigned(Self.ArrayValue) then
+        Self.ArrayValue.AsJSON(Result)
+      else
+        Result := Result+'null';
+
     end;
     TJSONValueType.object:
-      Self.ObjectValue.AsJSON(Result);
+    begin
+      if Assigned(Self.ObjectValue) then
+        Self.ObjectValue.AsJSON(Result)
+      else
+        Result := Result+'null';
+    end;
     TJSONValueType.boolean:
       if Self.IntegerValue = 1 then
         Result := Result+'true'
@@ -2204,7 +2727,7 @@ begin
     begin
       Initialize(jsa);
     end else
-      raise Exception.Create('Unknown variant type.');
+      raise EChimeraJSONException.Create('Unknown variant type.');
   end else
     case VarType(Value) of
       varSmallInt,
@@ -2254,11 +2777,11 @@ begin
       end;
 
       else
-        raise Exception.Create('Unknown variant type.');
+        raise EChimeraJSONException.Create('Unknown variant type.');
     end;
 end;
 
-procedure TMultiValue.AsJSON(Result: TStringBuilder);
+procedure TMultiValue.AsJSON(Result: {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder);
 begin
   case Self.ValueType of
     TJSONValueType.code:
@@ -2275,10 +2798,19 @@ begin
         Result.Append(FloatToStr(Self.NumberValue));
     TJSONValueType.array:
     begin
-      Self.ArrayValue.AsJSON(Result);
+      if Assigned(Self.ArrayValue) then
+         Self.ArrayValue.AsJSON(Result)
+      else
+        Result.Append('null');
     end;
     TJSONValueType.object:
-      Self.ObjectValue.AsJSON(Result);
+    begin
+      if Assigned(Self.ObjectValue) then
+       Self.ObjectValue.AsJSON(Result)
+     else
+      Result.Append('null');
+    end;
+
     TJSONValueType.boolean:
       if Self.IntegerValue = 1 then
         Result.Append('true')

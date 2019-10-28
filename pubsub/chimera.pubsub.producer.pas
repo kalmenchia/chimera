@@ -154,7 +154,7 @@ end;
 
 function TPubSubProducer.ParseChannel: string;
 begin
-  Result := Dispatcher.Request.PathInfo;
+  Result := String(Dispatcher.Request.PathInfo);
   if Assigned(FOnParseChannel) then
     FOnParseChannel(Self, Dispatcher.Request, Result);
 end;

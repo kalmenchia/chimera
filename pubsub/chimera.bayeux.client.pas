@@ -4,7 +4,7 @@
 //
 // PubSub Chimera project for Delphi
 //
-// Copyright (c) 2014 by Sivv Corp, All Rights Reserved
+// Copyright (c) 2014-2019 by Sivv Corp, All Rights Reserved
 //
 // Information about this product can be found at
 // http://arcana.sivv.com/chimera
@@ -34,12 +34,19 @@ unit chimera.bayeux.client;
 interface
 
 uses System.SysUtils, System.Classes, System.Generics.Collections, chimera.json,
-  System.Threading, chimera.utility.http, IdURI, IdCookieManager;
+  System.Threading, System.Net.HTTPClient, System.Net.URLClient, System.SyncObjs,
+  System.NetConsts;
 
 type
   TRetryMode = (retry, handshake, none);
   TMessageHandler = reference to procedure(const Msg : IJSONObject);
+  TStringHandler = reference to procedure(const Msg : string);
+  TClientIDHandler = reference to procedure(const OldID, NewID : string);
+  TErrorHandler = reference to procedure(const channel, error : string);
   TAuthenticateHandler = reference to procedure(var Username : String; var Password : string; var Authenticate : boolean);
+
+  EBayeuxException = class(Exception);
+
   TBayeuxClient = class(TInterfacedObject)
   private const
     META_HANDSHAKE   = '/meta/handshake';
@@ -47,17 +54,47 @@ type
     META_SUBSCRIBE   = '/meta/subscribe';
     META_UNSUBSCRIBE = '/meta/unsubscribe';
     META_DISCONNECT  = '/meta/disconnect';
+    type
+      ISubHandler = interface(IInterface)
+        function GetHandler : TMessageHandler;
+        procedure SetHandler(const Value: TMessageHandler);
+        function GetLastStamp : TDateTime;
+        procedure SetLastStamp(const Value : TDateTime);
+        function GetSentPing : boolean;
+        procedure SetSentPing(const Value : boolean);
+        property Handler : TMessageHandler read GetHandler write SetHandler;
+        property LastStamp : TDateTime read GetLastStamp write SetLastSTamp;
+        property SentPing : boolean read GetSentPing write SetSentPing;
+      end;
+      TSubHandler = class(TInterfacedObject, ISubHandler)
+      private
+        FSentPing : boolean;
+        FLastStamp: TDateTime;
+        FHandler: TMessageHandler;
+        function GetHandler: TMessageHandler;
+        function GetLastStamp: TDateTime;
+        procedure SetHandler(const Value: TMessageHandler);
+        procedure SetLastSTamp(const Value: TDateTime);
+        function GetSentPing : boolean;
+        procedure SetSentPing(const Value : boolean);
+      public
+        constructor Create(const AHandler : TMessageHandler); reintroduce;
+        property Handler : TMessageHandler read GetHandler write SetHandler;
+        property LastStamp : TDateTime read GetLastStamp write SetLastSTamp;
+        property SentPing : boolean read GetSentPing write SetSentPing;
+      end;
   strict private
-    FEndpoint: TIdURI;
+    FClientIDCS : TMultiReadExclusiveWriteSynchronizer;
     FClientID : string;
     FListener : TThread;
     FMessageID : Int64;
-    FDispatcher : TDictionary<string, TMessageHandler>;
-    FCookieManager : TIdCookieManager;
-  private
+    FDispatcherCS : TMultiReadExclusiveWriteSynchronizer;
+    FDispatcher : TDictionary<string, ISubHandler>;
+    FCookieManager : TCookieManager;
     FRetryMode : TRetryMode;
     FVersion: string;
     FSupportedConnectionTypes: string;
+    FRetry : Cardinal;
     FTimeout: Int64;
     FAlternativeHosts: IJSONArray;
     FMultipleClients: Boolean;
@@ -69,23 +106,48 @@ type
     FOnHandshakeComplete: TProc;
     FOnLogMessage: TMessageHandler;
     FOnLogResponse: TMessageHandler;
-    function Handshake(http : TIdHTTP) : boolean;
+    FOnLogVerbose: TStringHandler;
+    FOnClientIDChanged: TClientIDHandler;
+    FResubPing: integer;
+    FOnSubscribeError: TErrorHandler;
+    ResubPingerThread: TThread;
     function DoAuthenticate(var Username : string; var Password : string) : boolean;
-    procedure SetupHTTP(http : TIdHTTP);
-    procedure SynchronizeCookies(http : TIdHTTP);
+    //procedure DoHandshake;
+    procedure AuthCallback(const Sender: TObject; AnAuthTarget: TAuthTargetType;
+      const ARealm, AURL: string; var AUserName, APassword: string; var AbortAuth: Boolean;
+      var Persistence: TAuthPersistenceType);
+  private
+    procedure SetupHTTP(http : THTTPClient);
+    function Handshake(http : THTTPClient) : boolean;
+    procedure SynchronizeCookies(http : THTTPClient);
     procedure ProcessResponseObject(const obj : IJSONObject);
-    procedure DoHandshake;
-  protected
+    function GetClientID: string;
+
+    procedure SetClientID(const Value: string);
+    procedure DoOnUnsuccessful(const obj: IJSONObject);  protected
     procedure StartListener(const OnReady : TProc = nil); virtual;
     function GenerateRandomID : string; virtual;
-    function DoSendMessage(http : TIdHTTP; const Msg : IJSONObject) : IJSONObject; virtual;
-    procedure SendMessage(const Msg : IJSONObject); virtual;
+    function DoSendMessage(http : THTTPClient; const Msg : IJSONObject) : IJSONObject; virtual;
+    procedure SendMessage(const Msg : IJSONObject; OnError : TErrorHandler = nil); virtual;
     function NextID : string; virtual;
+    procedure Resubscribe;
+  protected
+    FEndpoint: TURI;
+    FHandshakeSuccessCount:Int64;
+
+
+    procedure DoLogVerbose(const Msg: string);
+
+    function HandshakeChecker :Boolean; virtual;
+
   public
     constructor Create(const Endpoint : string; DeferConnect : boolean = false;
       const OnHandshakeComplete : TProc = nil; const OnLogMessage : TMessageHandler = nil;
-      const OnLogResponse : TMessageHandler = nil);
+      const OnLogResponse : TMessageHandler = nil; const InitialClientID : string = '');
     destructor Destroy; override;
+
+    function GenerateResubPingMessage : IJSONObject; virtual;
+    function IsResubPingMessage(const jso : IJSONObject) : boolean; virtual;
 
     procedure Subscribe(const Channel : string; const OnMessage : TMessageHandler);
     procedure Unsubscribe(const Channel : string);
@@ -94,15 +156,20 @@ type
     property OnLogResponse : TMessageHandler read FOnLogResponse write FOnLogResponse;
     property OnAuthenticate : TAuthenticateHandler read FOnAuthenticate write FOnAuthenticate;
     property OnUnsuccessful : TMessageHandler read FOnUnsuccessful write FOnUnsuccessful;
-    property CookieManager : TIdCookieManager read FCookieManager;
-    property ClientID : string read FClientID;
+    property OnClientIDChanged : TClientIDHandler read FOnClientIDChanged write FOnClientIDChanged;
+    property OnSubscribeError : TErrorHandler read FOnSubscribeError write FOnSubscribeError;
+    property CookieManager : TCookieManager read FCookieManager;
+    property OnLogVerbose : TStringHandler read FOnLogVerbose write FOnLogVerbose;
     property Extension : IJSONObject read FExtension;
     property Interval : Cardinal read FInterval write FInterval;
+    property Retry : Cardinal read FRetry write FRetry;
+    property ClientID : string read GetClientID write SetClientID;
+    property ResubPing : integer read FResubPing write FResubPing;
   end;
 
 implementation
 
-uses System.Hash, IdSSLOpenSSL, System.SyncObjs, chimera.utility;
+uses System.Hash, System.DateUtils;
 
 type
   TListenerThread = class(TThread)
@@ -117,51 +184,162 @@ type
 
 { TBayeuxClient }
 
+procedure TBayeuxClient.AuthCallback(const Sender: TObject;
+  AnAuthTarget: TAuthTargetType; const ARealm, AURL: string; var AUserName,
+  APassword: string; var AbortAuth: Boolean;
+  var Persistence: TAuthPersistenceType);
+var
+  sUser, sPass : String;
+begin
+  if DoAuthenticate(sUser, sPass) then
+  begin
+    AbortAuth := False;
+    AUsername := sUser;
+    APassword := sPass;
+    Persistence := TAuthPersistenceType.Client;
+  end;
+end;
+
 constructor TBayeuxClient.Create(const Endpoint: string; DeferConnect : boolean = false;
       const OnHandshakeComplete : TProc = nil; const OnLogMessage : TMessageHandler = nil;
-      const OnLogResponse : TMessageHandler = nil);
+      const OnLogResponse : TMessageHandler = nil; const InitialClientID : string  = '');
 begin
   inherited Create;
+  FDispatcherCS := TMultiReadExclusiveWriteSynchronizer.Create;
+  FClientIDCS := TMultiReadExclusiveWriteSynchronizer.Create;
+  FCookieManager := TCookieManager.Create;
+  FInterval := 0;
+  FRetry := 5;
   FMessageID := 0;
-  FDispatcher := TDictionary<string, TMessageHandler>.Create;
-  FEndpoint := TIdURI.Create(Endpoint);
+  FDispatcher := TDictionary<string, ISubHandler>.Create;
+  FEndpoint := TURI.Create(Endpoint);
   FDeferConnect := DeferConnect;
   FOnHandshakeComplete := OnHandshakeComplete;
   FOnLogMessage := OnLogMessage;
   FOnLogResponse := OnLogResponse;
+  FClientID := InitialClientID;
   if not FDeferConnect then
     StartListener;
+
+  {$ifdef BAYEUX_VERBOSE_TRACE}
+  DoLogVerbose('TBayeuxClient.Create');
+  {$endif}
+
+
+  ResubPingerThread := TThread.CreateAnonymousThread(
+    procedure
+    var
+      ary : TArray<TPair<string, ISubHandler>>;
+      p : TPair<string, ISubHandler>;
+      DoNothing:Integer;
+    begin
+      TThread.NameThreadForDebugging('SubscriptionPings');
+      DoLogVerbose('Bayeux Thread SubscriptionPings Start');
+      DoNothing := 0;
+      repeat
+        try
+          if FResubPing > 0 then
+          begin
+            FDispatcherCS.BeginRead;
+            try
+              ary := FDispatcher.ToArray;
+            finally
+              FDispatcherCS.EndRead;
+            end;
+            for p in ary do
+            begin
+              if (not p.Value.SentPing) and
+                 (SecondsBetween(p.Value.LastStamp, Now) > FResubPing) then
+              begin
+                try
+                  DoLogVerbose('Bayeux Thread SubscriptionPings:GenerateResubPingMessage');
+                  Publish(p.Key,GenerateResubPingMessage);
+                finally
+                  p.Value.SentPing := True;
+                  p.Value.LastStamp := Now;
+                end;
+              end else if (p.Value.SentPing) and
+                          (SecondsBetween(p.Value.LastStamp, Now) > 10) then
+              begin
+                if ClientID <> '' then
+                begin
+                  DoLogVerbose('Bayeux Thread Subscribe ClientID='+ClientID);
+                  Subscribe(p.Key, p.Value.Handler);
+                end
+                else
+                  DoLogVerbose('Bayeux Thread ClientID blank');
+
+              end;
+            end;
+          end else
+          begin
+             Inc(DoNothing);
+             if (DoNothing mod 1000 = 1) then
+                  DoLogVerbose('Bayeux Client ID Shifting logic is NOT enabled');
+
+          end;
+        except
+          on e: exception
+          do
+          begin
+            DoLogVerbose('Ping Thread Error: '+e.ClassName+' "'+e.Message+'"');
+          end;
+        end;
+        sleep(500);
+      until TThread.CheckTerminated ;
+      DoLogVerbose('Bayeux Thread SubscriptionPings End');
+
+    end
+  );
+  ResubPingerThread.Start;
 end;
 
 destructor TBayeuxClient.Destroy;
 begin
+  if Assigned(ResubPingerThread) then
+    ResubPingerThread.Terminate;
+
   if Assigned(FListener) then
   begin
     FListener.Terminate;
-    Sleep(10);
-    TerminateThread(FListener);
+    Sleep(500);
+    FreeAndNil(FListener);
   end;
 
+  FDispatcherCS.Free;
+  FClientIDCS.Free;
+
   FDispatcher.Free;
-  FEndpoint.Free;
+  FCookieManager.Free;
   inherited;
 end;
 
 function TBayeuxClient.DoAuthenticate(var Username, Password: string): boolean;
 begin
+
+{$ifdef BAYEUX_VERBOSE_TRACE}
+  DoLogVerbose('TBayeuxClient.DoAuthenticate '+Username);
+  {$endif}
+
   Result := Assigned(FOnAuthenticate);
   if Result then
+  begin
+
+  {$ifdef BAYEUX_VERBOSE_TRACE}
+  DoLogVerbose('TBayeuxClient.OnAuthenticate '+Username);
+  {$endif}
     OnAuthenticate(Username, Password, Result);
+  end;
 end;
 
-procedure TBayeuxClient.DoHandshake;
+{procedure TBayeuxClient.DoHandshake;
 begin
   TThread.CreateAnonymousThread(
     procedure
     var
-      http : TIdHTTP;
+      http : THTTPClient;
     begin
-      http := TIdHTTP.Create(nil);
+      http := THTTPClient.Create;
       try
         SetupHTTP(http);
 
@@ -169,13 +347,30 @@ begin
 
         SynchronizeCookies(http);
       finally
+        if Assigned(http.CookieManager) then
+          http.CookieManager.Free;
         http.Free;
       end;
     end
   ).Start;
+end;}
+
+procedure TBayeuxClient.DoLogVerbose(const Msg : string);
+begin
+  if Assigned(FOnLogVerbose) then
+    FOnLogVerbose('[TBayeuxClient] ' + Msg);
 end;
 
-function TBayeuxClient.DoSendMessage(http: TIdHTTP; const Msg: IJSONObject) : IJSONObject;
+function TBayeuxClient.HandshakeChecker :Boolean;
+begin
+  Result := (FHandshakeSuccessCount>0);
+
+  DoLogVerbose('TBayeuxClient.HandshakeChecker '+BoolToStr(Result));
+
+
+end;
+
+function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) : IJSONObject;
   function ProcessAsObject(ss : TStringStream) : IJSONObject;
   begin
     Result := JSON(ss.DataString);
@@ -197,41 +392,111 @@ function TBayeuxClient.DoSendMessage(http: TIdHTTP; const Msg: IJSONObject) : IJ
       end
     );
   end;
-var
-  ssSource, ssResponse : TStringStream;
-  c: Char;
-  jsoError : IJSONObject;
+  function WaitforRetry: boolean;
+  var
+    i : integer;
+  begin
+    DoLogVerbose('WaitForRetry begins');
+
+    Result := True;
+    for i := Retry*100 downto 0 do
+    begin
+      if TListenerThread(TThread.Current).Terminated then
+      begin
+        DoLogVerbose('WaitForRetry terminated');
+
+        Result := False;
+        Abort;
+      end;
+      sleep(10);
+    end;
+
+
+    if TListenerThread(TThread.Current).Terminated then
+      Abort;
+
+      DoLogVerbose('WaitForRetry ends');
+
+  end;
+
+  function DoSend: IJSONObject;
+  var
+    ssSource, ssResponse : TStringStream;
+    c: Char;
+    jsoError : IJSONObject;
+    rescode: IHttpResponse;
+  begin
+    while True do
+      try
+        ssSource := TStringStream.Create(msg.AsJSON, TEncoding.UTF8);
+        ssResponse := TStringStream.Create('',TEncoding.UTF8);
+        try
+          try
+            rescode := http.post(FEndpoint.ToString, ssSource, ssResponse);
+            if rescode.StatusCode <> 200 then
+              raise ENetHTTPRequestException.Create(rescode.StatusCode.ToString+': '+rescode.StatusText);
+          except
+            on e: exception do
+            begin
+              DoLogVerbose('HTTP Error "'+e.Message+'" waiting for Retry.');
+              FreeAndNil(ssSource);
+              FreeAndNil(ssResponse);
+              try
+                WaitForRetry;
+              except
+                on e: EAbort do
+                begin
+                  jsoError := JSON();
+                  jsoError.Booleans['successful'] := false;
+                  jsoError.Strings['error'] := 'Process Aborted';
+                  result := jsoError;
+
+                  break;
+                end;
+              end;
+
+              continue;
+            end;
+          end;
+          if (ssResponse.Size > 0) then
+          begin
+            c := ssResponse.DataString.Chars[0];
+            case c of
+              '[' : Result := ProcessAsArray(ssResponse);
+              '{' : Result := ProcessAsObject(ssResponse);
+              else
+              begin
+                result := nil;
+                DoLogVerbose(ssResponse.Datastring);
+              end;
+            end;
+          end else
+            Result := nil;
+        finally
+          ssResponse.Free;
+          ssSource.Free;
+        end;
+        DoLogVerbose('DoSend BREAK');
+
+        break;
+      except
+        on e: exception do
+        begin
+          DoLogVerbose('DoSend EX '+E.ClassName+' '+E.Message);
+          jsoError := JSON();
+          jsoError.Booleans['successful'] := false;
+          jsoError.Strings['error'] := 'Local Send Message Error: '+e.Message;
+          ProcessResponseObject(jsoError);
+          result := jsoError;
+          break;
+        end;
+      end;
+  end;
+
 begin
   if Assigned(FOnLogMessage) then
     FOnLogMessage(msg);
-  try
-    ssSource := TStringStream.Create(msg.AsJSON, TEncoding.UTF8);
-    ssResponse := TStringStream.Create('',TEncoding.UTF8);
-    try
-      http.post(FEndpoint.URI, ssSource, ssResponse);
-      if (ssResponse.Size > 0) then
-      begin
-        c := ssResponse.DataString.Chars[0];
-        case c of
-          '[' : Result := ProcessAsArray(ssResponse);
-          '{' : Result := ProcessAsObject(ssResponse);
-        end;
-      end else
-        Result := nil;
-    finally
-      ssResponse.Free;
-      ssSource.Free;
-    end;
-  except
-    on e: exception do
-    begin
-      jsoError := JSON();
-      jsoError.Booleans['successful'] := false;
-      jsoError.Strings['error'] := 'Local Send Message Error: '+e.Message;
-      ProcessResponseObject(jsoError);
-      result := jsoError;
-    end;
-  end;
+  Result := DoSend;
   if Assigned(FOnLogResponse) then
     FOnLogResponse(msg);
 end;
@@ -246,10 +511,35 @@ begin
   Result := THashSHA1.GetHMAC(GuidToString(g),sDate);
 end;
 
-function TBayeuxClient.Handshake(http: TIdHTTP) : boolean;
+function TBayeuxClient.GenerateResubPingMessage: IJSONObject;
+begin
+  Result := JSON;
+  Result.Strings['message'] := '~chimera~bayeux~client~ping~';
+end;
+
+function TBayeuxClient.GetClientID: string;
+begin
+  FClientIDCS.BeginRead;
+  try
+    Result := FClientID;
+  finally
+    FClientIDCS.EndRead;
+  end;
+end;
+
+function TBayeuxClient.Handshake(http: THTTPClient) : boolean;
 var
   jso : IJSONObject;
 begin
+    DoLogVerbose('TBayeuxClient.Handshake ');
+
+
+  if ClientID <> '' then
+  begin
+    result := True;
+    exit;
+  end;
+
   jso := JSON;
   jso.Strings['channel'] := META_HANDSHAKE;
   jso.Strings['version'] := '1.0';
@@ -260,13 +550,31 @@ begin
   if jso <> nil then
     Result := jso.Booleans['successful']
   else
-    Result := false;
+  begin
+    raise EBayeuxException.Create('Invalid Response from Server.');
+
+  end;
+  DoLogVerbose('TBayeuxClient.Handshake '+jso.AsJSON() );
+
   if Result then
   begin
+    DoLogVerbose('Handshake Complete');
+    Inc(FHandshakeSuccessCount);
     if Assigned(FOnHandshakeComplete) then
-      FOnHandshakeComplete()
+      FOnHandshakeComplete();
   end else
-    FOnUnsuccessful(jso);
+  begin
+    DoLogVerbose('Handshake Failed');
+    if Assigned(FOnUnsuccessful) then
+      FOnUnsuccessful(jso);
+  end;
+end;
+
+function TBayeuxClient.IsResubPingMessage(const jso: IJSONObject): boolean;
+begin
+  Result :=
+    jso.Has['message'] and
+    (jso.Strings['message'] = '~chimera~bayeux~client~ping~');
 end;
 
 function TBayeuxClient.NextID: string;
@@ -275,6 +583,28 @@ var
 begin
   id := TInterlocked.Increment(FMessageID);
   Result := id.ToString.PadLeft(32,'0');
+end;
+
+procedure TBayeuxClient.DoOnUnsuccessful(const obj: IJSONObject);
+var
+  iErrorCode : integer;
+begin
+  if obj.Has['error'] and TryStrToInt(obj.Strings['error'].Substring(0,3),iErrorCode) then
+  begin
+        case iErrorCode of
+          401:
+          if obj.Strings['error'].toUpper.Contains('UNKNOWN CLIENT') then
+          begin
+              DoLogVerbose('Connection Error: Unknown Client ID, Trying another Handshake.');
+              ClientID := '';
+          end else
+           DoLogVerbose(obj.Strings['error']);
+        end;
+
+      end;
+
+  if Assigned(FOnUnsuccessful) then
+    FOnUnsuccessful(obj);
 end;
 
 procedure TBayeuxClient.ProcessResponseObject(const obj: IJSONObject);
@@ -299,6 +629,9 @@ procedure TBayeuxClient.ProcessResponseObject(const obj: IJSONObject);
     if advice.Has['interval'] then
       FInterval := advice.Integers['interval'];
 
+    if advice.Has['retry'] then
+      FRetry := advice.Integers['retry'];
+
     if advice.Has['multiple-clients'] then
       FMultipleClients := advice.Booleans['multiple-clients'];
 
@@ -307,6 +640,7 @@ procedure TBayeuxClient.ProcessResponseObject(const obj: IJSONObject);
   end;
 var
   sChannel : string;
+  p : ISubHandler;
 begin
   if obj.Has['successful'] then
   begin
@@ -317,7 +651,7 @@ begin
       begin
         FVersion := obj.Strings['version'];
         FSupportedConnectionTypes := obj.Strings['supportedConnectionTypes'];
-        FClientID := obj.Strings['clientId'];
+        ClientID := obj.Strings['clientId'];
         if obj.Has['advice'] then
           processAdvice(obj.Objects['advice']);
       end else if sChannel = META_CONNECT then
@@ -329,38 +663,64 @@ begin
         // Do Nothing
       end else if sChannel = META_UNSUBSCRIBE then
       begin
-        TThread.Queue(TThread.Current,
-          procedure
+        FDispatcherCS.BeginRead;
+        try
+          if FDispatcher.ContainsKey(obj.Strings['subscription']) then
           begin
-            FDispatcher.Remove(obj.Strings['subscription']);
-          end
-        );
+            FDispatcherCS.BeginWrite;
+            try
+              FDispatcher.Remove(obj.Strings['subscription']);
+            finally
+              FDispatcherCS.EndWrite;
+            end;
+          end;
+        finally
+          FDIspatcherCS.EndRead;
+        end;
       end else if sChannel = META_DISCONNECT then
       begin
         // Do Nothing
       end;
     end else if sChannel = META_SUBSCRIBE then
     begin
-      TThread.Queue(TThread.Current,
-        procedure
-        begin
-          FDispatcher.Remove(obj.Strings['subscription']);
-        end
-      );
-      if Assigned(FOnUnsuccessful) then
-        FOnUnsuccessful(obj);
-    end else if Assigned(FOnUnsuccessful) then
-      FOnUnsuccessful(obj);
+        FDispatcherCS.BeginRead;
+        try
+          if FDispatcher.ContainsKey(obj.Strings['subscription']) then
+          begin
+            FDispatcherCS.BeginWrite;
+            try
+              FDispatcher.Remove(obj.Strings['subscription']);
+            finally
+              FDispatcherCS.EndWrite;
+            end;
+          end;
+        finally
+          FDIspatcherCS.EndRead;
+        end;
+
+      DoOnUnsuccessful(obj);
+   end else
+     DoOnUnsuccessful(obj);
   end else
   begin
     if obj.Has['channel'] and obj.Has['data'] then
     begin
-      TThread.Queue(TThread.Current,
-        procedure
+      FDispatcherCS.BeginRead;
+      try
+        if IsResubPingMessage(obj.Objects['data']) then
         begin
-          FDispatcher[obj.Strings['channel']](obj.Objects['data']);
-        end
-      );
+          p := FDispatcher[obj.Strings['channel']];
+          p.SentPing := False;
+          p.LastStamp := Now;
+        end else if FDispatcher.ContainsKey(obj.Strings['channel']) then
+        begin
+          p := FDispatcher[obj.Strings['channel']];
+          p.Handler(obj.Objects['data']);
+        end;
+
+     finally
+        FDIspatcherCS.EndRead;
+      end;
     end;
   end;
 end;
@@ -369,31 +729,92 @@ procedure TBayeuxClient.Publish(const Channel: string; const Msg: IJSONObject);
 var
   jso: IJSONObject;
 begin
+
+  {$ifdef BAYEUX_VERBOSE_TRACE}
+  DoLogVerbose('TBayeuxClient.Publish('+Channel+'...)');
+  {$endif}
+
   jso := JSON;
   jso.Strings['channel'] := Channel;
   jso.Objects['data'] := Msg;
-  if FClientID <> '' then
-    jso.Strings['clientId'] := FClientID;
+  if ClientID <> '' then
+    jso.Strings['clientId'] := ClientID;
   jso.Strings['id'] := NextID;
   if Assigned(FExtension)  then
     jso.Objects['ext'] := FExtension;
   SendMessage(jso);
 end;
 
-procedure TBayeuxClient.SendMessage(const Msg: IJSONObject);
+procedure TBayeuxClient.Resubscribe;
+var
+  p : TPair<string, ISubHandler>;
+  ary : TArray<TPair<string, ISubHandler>>;
+begin
+  if not Self.HandshakeChecker then
+        raise EBayeuxException.Create('Cannot resubscribe while handshaking');
+
+
+  FDispatcherCS.BeginRead;
+  try
+    ary := FDispatcher.ToArray;
+  finally
+    FDispatcherCS.EndRead;
+  end;
+  for p in ary do
+  begin
+    Subscribe(p.Key, p.Value.Handler);
+  end;
+end;
+
+procedure TBayeuxClient.SendMessage(const Msg: IJSONObject; OnError : TErrorHandler = nil);
 begin
   TThread.CreateAnonymousThread(
     procedure
     var
-      http : TIdHTTP;
+      http : THTTPClient;
+      jso : IJSONObject;
     begin
-      http := TIdHTTP.Create(nil);
+      http := THTTPClient.Create;
       try
         SetupHTTP(http);
 
-        DoSendMessage(http, Msg);
+
+  {$ifdef BAYEUX_VERBOSE_TRACE}
+  DoLogVerbose('TBayeuxClient.Send '+MSG.AsJSON() );
+  {$endif}
+
+
+        jso := DoSendMessage(http, Msg);
+        if Assigned(jso) and Msg.Has['channel'] and (Msg.Strings['channel'] = META_SUBSCRIBE) and jso.Has['successful'] and (not jso.Booleans['successful']) then
+        begin
+          if Assigned(OnError) then
+          begin
+            {$ifdef BAYEUX_VERBOSE_TRACE}
+            DoLogVerbose('TBayeuxClient.Send ERROR '+MSG.AsJSON() );
+            {$endif}
+
+            OnError(Msg.Strings['subscription'], jso.Strings['error'])
+          end
+          else if Assigned(FOnSubscribeError) then
+          begin
+            {$ifdef BAYEUX_VERBOSE_TRACE}
+            DoLogVerbose('TBayeuxClient.Send SUBERROR '+MSG.AsJSON() );
+            {$endif}
+
+
+            FOnSubscribeError(Msg.Strings['subscription'], jso.Strings['error']);
+          end;
+        end;
+        {$ifdef BAYEUX_VERBOSE_TRACE}
+            DoLogVerbose('TBayeuxClient.Send sync '+MSG.AsJSON() );
+        {$endif}
 
         SynchronizeCookies(http);
+        {$ifdef BAYEUX_VERBOSE_TRACE}
+            DoLogVerbose('TBayeuxClient.Send ending '+MSG.AsJSON() );
+        {$endif}
+
+
       finally
         http.Free;
       end;
@@ -401,26 +822,46 @@ begin
   ).Start;
 end;
 
-procedure TBayeuxClient.SetupHTTP(http: TIdHTTP);
+procedure TBayeuxClient.SetClientID(const Value: string);
 var
-  sUser, sPass : String;
+  sOldID : string;
+begin
+  if FClientIDCS.BeginWrite then
+    try
+      if FClientID <> Value then
+      begin
+        sOldID := FClientID;
+        FClientID := Value;
+        if (Value <> '') then
+            if HandshakeChecker then
+                Resubscribe;
+        if Assigned(FOnClientIDChanged) then
+          FOnClientIDChanged(sOldID, Value);
+      end;
+    finally
+      FClientIDCS.EndWrite;
+    end
+  else
+    raise EBayeuxException.Create('Could not set ClientID');
+end;
+
+procedure TBayeuxClient.SetupHTTP(http: THTTPClient);
 begin
   http.AllowCookies := True;
-  http.CookieManager := TIdCookieManager.Create(http);
+  if NOT Assigned(http.CookieManager) then
+    http.CookieManager := TCookieManager.Create;
   http.HandleRedirects := True;
-  http.ProtocolVersion := TIdHTTPProtocolVersion.pv1_1;
-  http.Request.ContentType := 'application/json';
-  if DoAuthenticate(sUser, sPass) then
-  begin
-    http.Request.Username := sUser;
-    http.Request.Password := sPass;
-  end;
-  http.Request.UserAgent := 'Chimera Bayeux Client';
-  http.IOHandler := TIdSSLIOHandlerSocketOpenSSL.Create(http);
+  //http.ProtocolVersion := TIdHTTPProtocolVersion.pv1_1;
+  http.ContentType := 'application/json';
+  http.AuthEvent := Self.AuthCallback;
+  http.UserAgent := 'Chimera Bayeux Client';
   TThread.Synchronize(TThread.Current,
     procedure
+    var
+      cookie : TCookie;
     begin
-      http.CookieManager.AddCookies(FCookieManager);
+      for cookie in FCookieManager.Cookies do
+        http.CookieManager.AddServerCookie(cookie.ToString, '.');
     end
   );
 
@@ -438,50 +879,93 @@ end;
 procedure TBayeuxClient.Subscribe(const Channel: string;
   const OnMessage: TMessageHandler);
 begin
-  FDispatcher.AddOrSetValue(Channel, OnMessage);
+  FDispatcherCS.BeginWrite;
+  try
+    FDispatcher.AddOrSetValue(Channel, TSubHandler.Create(OnMessage));
+  finally
+    FDIspatcherCS.EndWrite;
+  end;
   StartListener(
     procedure
     var
       jso : IJSONObject;
     begin
       jso := JSON;
-      jso.Strings['clientId'] := FClientID;
+      jso.Strings['clientId'] := ClientID;
       jso.Strings['channel'] := META_SUBSCRIBE;
       jso.Strings['subscription'] := Channel;
       if Assigned(FExtension) then
         jso.Objects['ext'] := FExtension;
 
-      SendMessage(jso);
+      if not HandshakeChecker then
+            DoLogVerbose('SendMessage of META_SUBSCRIBE STARTING before handshake');
+
+      SendMessage(jso,
+        procedure(const channel, error : string)
+        begin
+          if (not error.startsWith('401::')) or
+             (error.startsWith('401::') and (not error.toUpper.Contains('UNKNOWN CLIENT'))) then
+            Unsubscribe(Channel);
+        end
+      );
     end
   );
 end;
 
-procedure TBayeuxClient.SynchronizeCookies(http: TIdHTTP);
+procedure TBayeuxClient.SynchronizeCookies(http: THTTPClient);
 begin
-{  TThread.Synchronize(TThread.Current,
+  TThread.Synchronize(TThread.Current,
     procedure
+    var
+      cookie : TCookie;
     begin
-      FCookieManager.AddCookies(http.CookieManager);
+      for cookie in http.CookieManager.Cookies do
+      begin
+        FCookieManager.AddServerCookie(cookie.ToString, '.');
+      end;
     end
-  );}
+  );
 end;
 
 procedure TBayeuxClient.Unsubscribe(const Channel: string);
 begin
+{$ifdef BAYEUX_VERBOSE_TRACE}
+  DoLogVerbose('TBayeuxClient.Unsubscribe '+Channel);
+  {$endif}
+
+
   StartListener(
     procedure
     var
       jso : IJSONObject;
     begin
       jso := JSON;
-      jso.Strings['clientId'] := FClientID;
+      jso.Strings['clientId'] := ClientID;
       jso.Strings['channel'] := META_UNSUBSCRIBE;
       jso.Strings['subscription'] := Channel;
       if Assigned(FExtension) then
         jso.Objects['ext'] := FExtension;
 
       SendMessage(jso);
-      FDispatcher.Remove(Channel);
+
+      FDispatcherCS.BeginRead;
+      try
+        if FDispatcher.ContainsKey(Channel) then
+        begin
+          FDispatcherCS.BeginWrite;
+          try
+            FDispatcher.Remove(Channel);
+          finally
+            FDispatcherCS.EndWrite;
+          end;
+        end;
+      finally
+        FDIspatcherCS.EndRead;
+      end;
+      {$ifdef BAYEUX_VERBOSE_TRACE}
+        DoLogVerbose('TBayeuxClient.Unsubscribe '+Channel+' ends');
+      {$endif}
+
     end
   );
 end;
@@ -492,7 +976,7 @@ constructor TListenerThread.Create(Owner : TBayeuxClient; OnReady : TProc) ;
 begin
   inherited Create(False);
   FOwner := Owner;
-  FreeOnTerminate := True;
+  FreeOnTerminate := False;
   FOnReady := OnReady;
 end;
 
@@ -512,7 +996,7 @@ procedure TListenerThread.Execute;
       sleep(10);
     end;
   end;
-  function Connect(http : TIdHTTP) : boolean;
+  function Connect(http : THTTPClient) : boolean;
   var
     jso : IJSONObject;
   begin
@@ -525,39 +1009,63 @@ procedure TListenerThread.Execute;
     jso.Strings['id'] := FOwner.NextID;
     jso := FOwner.DoSendMessage(http, jso);
     if jso <> nil then
-      Result := jso.Booleans['successful']
-    else
-      Result := true;
+    begin
+      Result := jso.Booleans['successful'];
+      if not Result and (FOwner.ClientID = '') then
+        if FOwner.Handshake(http) then
+        begin
+          Result := Connect(http);
+          if Result then
+            exit;
+        end;
+    end else
+    begin
+      Result := false;
+    end;
   end;
 var
-  http : TIdHTTP;
-  sUser, sPass : string;
-  ssSource, ssResponse : TStringStream;
+  http : THTTPClient;
 begin
-  http := TIdHTTP.Create(nil);
+  NameThreadForDebugging('Bayeux Listener');
+  http := THTTPClient.Create;
   try
     FOwner.SetupHTTP(http);
-    http.OnChunkReceived := OnChunkReceived;
-    if FOwner.Handshake(http) then
-    begin
-      http.Request.Connection := 'keep-alive';
-      http.Request.TransferEncoding := 'chunked';
-      repeat
-        if Connect(http) then
+    //http.OnChunkReceived := OnChunkReceived;
+    repeat
+      try
+        if FOwner.Handshake(http) then
         begin
-          if Assigned(FOnReady) then
-            FOnReady();
-          FOnReady := nil;
-        end;
+          http.CustomHeaders['Keep-Alive'] := 'max';
+          //http.CustomHeaders['Connection'] := 'close';
+          //http.TransferEncoding := 'chunked';
+          repeat
+            if Connect(http) then
+            begin
+              if Assigned(FOnReady) then
+                FOnReady();
+              FOnReady := nil;
+            end;
 
-        FOwner.SynchronizeCookies(http);
+            FOwner.SynchronizeCookies(http);
 
-        if not WaitInterval then
+            if not WaitInterval then
+              break;
+          until (Terminated);
+
+        end else if not WaitInterval then
           break;
-      until (Terminated);
-
-    end;
+      except
+        on E: Exception do
+        begin
+          FOwner.DoLogVerbose('Main connection loop error "'+E.Message+'"');
+          if not WaitInterval then
+            break
+        end;
+      end;
+    until (Terminated);
   finally
+//    if assigned(http.CookieManager) then
+//      http.CookieManager.Free;
     http.Free;
   end;
 end;
@@ -566,6 +1074,48 @@ procedure TListenerThread.OnChunkReceived(Sender: TObject; Chunk: TStream);
 begin
   FOwner.ProcessResponseObject(JSON().LoadFromStream(Chunk));
   Chunk.Size := 0;
+end;
+
+{ TBayeuxClient.TSubHandler }
+
+constructor TBayeuxClient.TSubHandler.Create(const AHandler: TMessageHandler);
+begin
+  inherited Create;
+  FHandler := AHandler;
+  FLastStamp := Now;
+  FSentPing := False;
+end;
+
+function TBayeuxClient.TSubHandler.GetHandler: TMessageHandler;
+begin
+  FSentPing := False;
+  FLastStamp := Now;
+  Result := FHandler;
+end;
+
+function TBayeuxClient.TSubHandler.GetLastStamp: TDateTime;
+begin
+  Result := FLastStamp;
+end;
+
+function TBayeuxClient.TSubHandler.GetSentPing: boolean;
+begin
+  Result := FSentPing;
+end;
+
+procedure TBayeuxClient.TSubHandler.SetHandler(const Value: TMessageHandler);
+begin
+  FHandler := Value;
+end;
+
+procedure TBayeuxClient.TSubHandler.SetLastSTamp(const Value: TDateTime);
+begin
+  FLastStamp := Value;
+end;
+
+procedure TBayeuxClient.TSubHandler.SetSentPing(const Value: boolean);
+begin
+  FSentPing := Value;
 end;
 
 end.

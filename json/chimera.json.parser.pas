@@ -33,17 +33,18 @@ unit chimera.json.parser;
 
 interface
 
+{$I chimera.inc}
+
 uses System.SysUtils, System.Classes, System.Generics.Collections,
-  System.Types, System.Rtti, chimera.json;
+  System.Types, System.Rtti, chimera.json
+  {$IFDEF USEFASTCODE}, FastStringBuilder{$ENDIF};
 
 type
 {$SCOPEDENUMS ON}
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
 
-  EParseException = class(Exception)
-
-  end;
+  EChimeraParseException = class(EChimeraException);
 
   TParser = class(TObject)
   type
@@ -57,8 +58,8 @@ type
     FTokenValue : TMultiValue;
     FOperatorStack : TStack<TParseToken>;
     FValueStack : TStack<TMultiValue>;
-    FTmpValue : TStringBuilder;
-    FTmpIdent : TStringBuilder;
+    FTmpValue : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
+    FTmpIdent : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
     function GetToken : boolean;
     function ParseArray: IJSONArray; overload;
     function ParseObject: IJSONObject;
@@ -88,8 +89,8 @@ begin
   FOperatorStack := TStack<TParseToken>.Create;
   FValueStack := TStack<TMultiValue>.Create;
   FFmt := TFormatSettings.Create('en-us');
-  FTmpValue := TStringBuilder.Create;
-  FTmpIdent := TStringBuilder.Create;
+  FTmpValue := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create;
+  FTmpIdent := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create;
 end;
 
 destructor TParser.Destroy;
@@ -131,8 +132,9 @@ function TParser.GetToken: boolean;
 var
   d : Double;
   b : boolean;
-  i : integer;
+  i, iCnt : integer;
   iStart : integer;
+  j: Integer;
 begin
   FTmpIdent.Clear;
   while FIndex <= FTextLength do
@@ -144,20 +146,25 @@ begin
       FTmpIdent.Append(FText.Chars[FIndex]);
       break;
     end else if (FText.Chars[FIndex] <= Char($20)) then
-      continue
-    else if (FText.Chars[FIndex].IsLetterOrDigit) or (FText.Chars[FIndex]='-') then
+    begin
+      continue;
+    end else if (FText.Chars[FIndex].IsLetterOrDigit) or (FText.Chars[FIndex]='-') then
     begin
       // Is an identifier or value
       iStart := FIndex;
       while (FIndex < FTextLength) do
       begin
         if ( not CharInSet(FText.Chars[FIndex], ['0'..'9', 'A'..'Z','a'..'z','.', '-'])) then //.isLetterOrDigit(FText[FIndex])) and (FText[FIndex] <> FFmt.DecimalSeparator)) then
+        begin
           break;
+        end;
         if (FIndex > iStart) then
         begin
           if ( not CharInSet(FText.Chars[FIndex-1], ['0'..'9', 'A'..'Z','a'..'z','.', '-'])) then //.isLetterOrDigit(FText[FIndex])) and (FText[FIndex] <> FFmt.DecimalSeparator)) then
+          begin
         //if (FIndex > iStart) and (( not TCharacter.isLetterOrDigit(FText[FIndex-1])) and (FText[FIndex-1] <> FFmt.DecimalSeparator)) then
             break;
+          end;
           FTmpIdent.Append(FText.Chars[FIndex-1]);
           FTmpIdent.Append(FText.Chars[FIndex]);
         end else
@@ -167,9 +174,10 @@ begin
         inc(FIndex,2); // marginally faster to skip by twos, moreso on big tokens
       end;
       if (FIndex > iStart) and ( not CharInSet(FText.Chars[FIndex-1], ['0'..'9', 'A'..'Z','a'..'z','.', '-'])) then //.isLetterOrDigit(FText[FIndex])) and (FText[FIndex] <> FFmt.DecimalSeparator)) then
+      begin
       //if (FIndex > iStart) and ( not TCharacter.isLetterOrDigit(FText[FIndex-1])) and (FText[FIndex-1] <> FFmt.DecimalSeparator) then
         dec(FIndex)
-      else
+      end else
       begin
         FTmpIdent.Append(FText.Chars[FIndex-1]);
       end;
@@ -190,6 +198,7 @@ begin
       ':': FToken := TParseToken.Colon;
       '"':
       begin
+
         FToken := TParseToken.String;
         FTmpValue.Clear;
         for i := FIndex+1 to FTextLength do
@@ -197,10 +206,25 @@ begin
           if (FText.Chars[i] = '"') then
           begin
             if (FText.Chars[i-1] <> '\') then
+            begin
               break;
-            if (FText.Chars[i-2] = '\') then
+            end;
+
+            iCnt := 1;
+            for j := i-2 downto 0 do
+            begin
+              if FText.Chars[j] = '\' then
+                inc(iCnt)
+              else
+                break;
+            end;
+            if (iCnt mod 2) <> 0 then
+            begin
+              FTmpValue.Append('"');
+            end else
+            begin
               break;
-            FTmpValue.Append('"');
+            end;
           end else
           begin
             FTmpValue.Append(FText.Chars[i]);
@@ -219,7 +243,7 @@ begin
         else if FTmpIdent.ToString = 'null' then
           FTokenValue.InitializeNull
         else
-          raise EParseException.Create('Unexpected Value');
+          raise EChimeraParseException.Create('Unexpected Value "'+FTmpIdent.ToString+'"');
       end;
     end;
   end else
@@ -233,7 +257,7 @@ end;
 function TParser.ParseArray : IJSONArray;
 begin
   if FToken <> TParseToken.OpenArray  then
-    raise Exception.Create('Array Expected');
+    raise EChimeraParseException.Create('Array Expected');
   Result := JSONArray;
   GetToken;
   while FToken <> TParseToken.CloseArray do
@@ -268,12 +292,12 @@ begin
       TParser.TParseToken.MaxOp,
       TParser.TParseToken.Colon:
         if FToken <> TParseToken.Colon then
-          raise Exception.Create('Value Expected');
+          raise EChimeraParseException.Create('Value Expected');
     end;
     GetToken;
     if not (FToken in [TParseToken.Comma, TParseToken.CloseArray]) then
     begin
-      raise Exception.Create('Comma or Close Array Expected');
+      raise EChimeraParseException.Create('Comma or Close Array Expected');
     end;
     if FToken = TParseToken.Comma then
       GetToken;
@@ -289,41 +313,54 @@ end;
 procedure TParser.ParseObjectTo(const Obj: IJSONObject);
 var
   sName : String;
-  p : Pointer;
+  {$IFDEF HASWEAKREF}
+  [Weak]
+  p : IJSONObject;
+  {$ENDIF}
 begin
   if FToken <> TParseToken.OpenObject  then
-    raise Exception.Create('Object Expected');
+    raise EChimeraParseException.Create('Object Expected');
   GetToken;
   while FToken <> TParseToken.CloseObject do
   begin
     if FToken <> TParseToken.String then
-      raise Exception.Create('String Expected');
+      raise EChimeraParseException.Create('String Expected');
     sName := FTokenValue.StringValue;
     GetToken;
     if FToken <> TParseToken.Colon then
-      raise Exception.Create('Colon Expected');
+      raise EChimeraParseException.Create('Colon Expected');
     GetToken;
     case FToken of
       TParser.TParseToken.String:
         Obj.Raw[sName] := @FTokenValue;
       TParser.TParseToken.OpenObject:
         begin
-          p := @obj;
+          {$IFDEF HASWEAKREF}
+          p := obj;
+          {$ENDIF}
           Obj.Objects[sName] := ParseObject;
           Obj.Objects[sName].OnChange :=
             procedure(const jso : IJSONObject)
             begin
-              IJSONObject(p).DoChangeNotify;
+              {$IFDEF HASWEAKREF}
+              if Assigned(p) then
+                p.DoChangeNotify;
+              {$ENDIF}
             end;
         end;
       TParser.TParseToken.OpenArray:
         begin
-          p := @obj;
+          {$IFDEF HASWEAKREF}
+          p := obj;
+          {$ENDIF}
           Obj.Arrays[sName] := ParseArray;
           Obj.Arrays[sName].OnChange :=
             procedure(const jsa : IJSONArray)
             begin
-              IJSONObject(p).DoChangeNotify;
+              {$IFDEF HASWEAKREF}
+              if Assigned(p) then
+                p.DoChangeNotify;
+              {$ENDIF}
             end;
         end;
       TParser.TParseToken.Value:
@@ -348,12 +385,12 @@ begin
       TParser.TParseToken.MaxOp,
       TParser.TParseToken.Colon:
         if FToken <> TParseToken.Colon then
-          raise Exception.Create('Value Expected');
+          raise EChimeraParseException.Create('Value Expected');
     end;
     GetToken;
     if not (FToken in [TParseToken.Comma, TParseToken.CloseObject]) then
     begin
-      raise Exception.Create('Comma or Close Object Expected');
+      raise EChimeraParseException.Create('Comma or Close Object Expected');
     end;
     if FToken = TParseToken.Comma then
       GetToken;

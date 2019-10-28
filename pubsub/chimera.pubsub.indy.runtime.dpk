@@ -40,7 +40,6 @@ requires
 
 contains
   chimera.pubsub.client.idhttp in 'chimera.pubsub.client.idhttp.pas',
-  chimera.pubsub.server.idhttp in 'chimera.pubsub.server.idhttp.pas',
-  chimera.bayeux.client in 'chimera.bayeux.client.pas';
+  chimera.pubsub.server.idhttp in 'chimera.pubsub.server.idhttp.pas';
 
 end.

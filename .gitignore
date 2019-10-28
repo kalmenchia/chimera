@@ -6,3 +6,6 @@
 *.identcache
 *.dcu
 *.stat
+pubsub/__history/
+json/__history/
+utility/__history/
