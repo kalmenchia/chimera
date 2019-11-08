@@ -105,6 +105,18 @@ type
     function GetGUID(const idx : integer) : TGuid;
     function GetValue(const idx : integer) : PMultiValue;
 
+    function GetBooleanDefaulted(const idx: integer): Boolean;
+    function GetNumberDefaulted(const idx: integer): Double;
+    function GetDateDefaulted(const idx: integer): TDateTime;
+    function GetLocalDateDefaulted(const idx: integer): TDateTime;
+    function GetIntDateDefaulted(const idx: integer): TDateTime;
+    function GetIntegerDefaulted(const idx: integer): Int64;
+    function GetStringDefaulted(const idx: integer): string;
+    function GetObjectDefaulted(const idx: integer): IJSONObject;
+    function GetArrayDefaulted(const idx: integer): IJSONArray;
+    function GetBytesDefaulted(const idx : integer) : TArray<Byte>;
+    function GetGUIDDefaulted(const idx : integer) : TGuid;
+
     procedure SetBoolean(const idx: integer; const Value: Boolean);
     procedure SetCount(const Value: integer);
     procedure SetNumber(const idx: integer; const Value: Double);
@@ -195,9 +207,23 @@ type
     property Booleans[const idx : integer] : Boolean read GetBoolean write SetBoolean;
     property Objects[const idx : integer] : IJSONObject read GetObject write SetObject;
     property Arrays[const idx : integer] : IJSONArray read GetArray write SetArray;
+
+    property GUIDsDefaulted[const idx : integer] : TGUID read GetGuidDefaulted write SetGuid;
+    property BytesDefaulted[const idx : integer] : TArray<Byte> read GetBytesDefaulted write SetBytes;
+    property StringsDefaulted[const idx : integer] : string read GetStringDefaulted write SetString;
+    property NumbersDefaulted[const idx : integer] : Double read GetNumberDefaulted write SetNumber;
+    property DatesDefaulted[const idx : integer] : TDateTime read GetDateDefaulted write SetDate;
+    property LocalDatesDefaulted[const idx : integer] : TDateTime read GetLocalDateDefaulted write SetLocalDate;
+    property IntDatesDefaulted[const idx : integer] : TDateTime read GetIntDateDefaulted write SetIntDate;
+    property IntegersDefaulted[const idx : integer] : Int64 read GetIntegerDefaulted write SetInteger;
+    property BooleansDefaulted[const idx : integer] : Boolean read GetBooleanDefaulted write SetBoolean;
+    property ObjectsDefaulted[const idx : integer] : IJSONObject read GetObjectDefaulted write SetObject;
+    property ArraysDefaulted[const idx : integer] : IJSONArray read GetArrayDefaulted write SetArray;
+
     property Items[const idx : integer] : Variant read GetItem write SetItem; default;
     property Types[const idx : integer] : TJSONValueType read GetType write SetType;
     property Values[const idx : integer] : PMultiValue read GetValue;
+
     property Count : integer read GetCount write SetCount;
   end;
 
@@ -208,21 +234,35 @@ type
     function GetRaw(const name: string): PMultiValue;
     procedure SetRaw(const name: string; const Value: PMultiValue);
     function GetHas(const name : string): Boolean;
-    function GetBoolean(const name : string): Boolean;
     function GetCount: integer;
+
+    function GetBoolean(const name : string): Boolean;
     function GetNumber(const name : string): Double;
     function GetDate(const name : string): TDateTime;
     function GetLocalDate(const name : string): TDateTime;
     function GetIntDate(const name : string): TDateTime;
     function GetInteger(const name : string): Int64;
-    function GetItem(const name : string): Variant;
     function GetString(const name : string): string;
     function GetObject(const name : string): IJSONObject;
     function GetArray(const name : string): IJSONArray;
-    function GetType(const name : string): TJSONValueType;
-    function GetName(const idx : integer): string;
     function GetBytes(const name : string): TArray<Byte>;
     function GetGuid(const name : string) : TGuid;
+
+    function GetBooleanDefaulted(const name : string): Boolean;
+    function GetNumberDefaulted(const name : string): Double;
+    function GetDateDefaulted(const name : string): TDateTime;
+    function GetLocalDateDefaulted(const name : string): TDateTime;
+    function GetIntDateDefaulted(const name : string): TDateTime;
+    function GetIntegerDefaulted(const name : string): Int64;
+    function GetStringDefaulted(const name : string): string;
+    function GetObjectDefaulted(const name : string): IJSONObject;
+    function GetArrayDefaulted(const name : string): IJSONArray;
+    function GetBytesDefaulted(const name : string): TArray<Byte>;
+    function GetGuidDefaulted(const name : string) : TGuid;
+
+    function GetItem(const name : string): Variant;
+    function GetType(const name : string): TJSONValueType;
+    function GetName(const idx : integer): string;
     function GetValue(const name : string) : PMultiValue;
 
     procedure SetBoolean(const name : string; const Value: Boolean);
@@ -303,9 +343,23 @@ type
     property Booleans[const name : string] : Boolean read GetBoolean write SetBoolean;
     property Objects[const name : string] : IJSONObject read GetObject write SetObject;
     property Arrays[const name : string] : IJSONArray read GetArray write SetArray;
+
+    property GUIDsDefaulted[const name : string] : TGuid read GetGuidDefaulted write SetGuid;
+    property BytesDefaulted[const name : string] : TArray<Byte> read GetBytesDefaulted write SetBytes;
+    property StringsDefaulted[const name : string] : string read GetStringDefaulted write SetString;
+    property NumbersDefaulted[const name : string] : Double read GetNumberDefaulted write SetNumber;
+    property DatesDefaulted[const name : string] : TDateTime read GetDateDefaulted write SetDate;
+    property LocalDatesDefaulted[const name : string] : TDateTime read GetLocalDateDefaulted write SetLocalDate;
+    property IntDatesDefaulted[const name : string] : TDateTime read GetIntDateDefaulted write SetIntDate;
+    property IntegersDefaulted[const name : string] : Int64 read GetIntegerDefaulted write SetInteger;
+    property BooleansDefaulted[const name : string] : Boolean read GetBooleanDefaulted write SetBoolean;
+    property ObjectsDefaulted[const name : string] : IJSONObject read GetObjectDefaulted write SetObject;
+    property ArraysDefaulted[const name : string] : IJSONArray read GetArrayDefaulted write SetArray;
+
     property Items[const name : string] : Variant read GetItem write SetItem; default;
     property Types[const name : string] : TJSONValueType read GetType write SetType;
     property Values[const name : string] : PMultiValue read GetValue;
+
     property Count : integer read GetCount;
     property Names[const idx : integer] : string read GetName;
     property Has[const name : string] : boolean read GetHas;
@@ -368,6 +422,18 @@ type
     function GetBytes(const idx : integer) : TArray<Byte>;
     function GetGuid(const idx : integer) : TGuid;
     function GetValue(const idx : integer) : PMultiValue;
+
+    function GetBooleanDefaulted(const idx: integer): Boolean;
+    function GetNumberDefaulted(const idx: integer): Double;
+    function GetDateDefaulted(const idx: integer): TDateTime;
+    function GetLocalDateDefaulted(const idx: integer): TDateTime;
+    function GetIntDateDefaulted(const idx: integer): TDateTime;
+    function GetIntegerDefaulted(const idx: integer): Int64;
+    function GetStringDefaulted(const idx: integer): string;
+    function GetObjectDefaulted(const idx: integer): IJSONObject;
+    function GetArrayDefaulted(const idx: integer): IJSONArray;
+    function GetBytesDefaulted(const idx : integer) : TArray<Byte>;
+    function GetGUIDDefaulted(const idx : integer) : TGuid;
 
     procedure SetGuid(const idx : integer; const Value : TGUID);
     procedure SetBytes(const idx: integer; const Value: TArray<Byte>);
@@ -483,20 +549,33 @@ type
     //FParentArray: IJSONArray;
     function GetBoolean(const name : string): Boolean;
     function GetCount: integer;
+    function GetItem(const name : string): Variant;
+    function GetType(const name : string): TJSONValueType;
+    function GetName(const idx : integer): string;
+
     function GetNumber(const name : string): Double;
     function GetDate(const name : string): TDateTime;
     function GetLocalDate(const name : string): TDateTime;
     function GetIntDate(const name : string): TDateTime;
     function GetInteger(const name : string): Int64;
-    function GetItem(const name : string): Variant;
     function GetString(const name : string): string;
     function GetObject(const name : string): IJSONObject;
     function GetArray(const name : string): IJSONArray;
-    function GetType(const name : string): TJSONValueType;
-    function GetName(const idx : integer): string;
     function GetBytes(const name : string): TArray<Byte>;
     function GetGuid(const name: string): TGuid;
     function GetValue(const name: string) : PMultiValue;
+
+    function GetBooleanDefaulted(const name : string): Boolean;
+    function GetNumberDefaulted(const name : string): Double;
+    function GetDateDefaulted(const name : string): TDateTime;
+    function GetLocalDateDefaulted(const name : string): TDateTime;
+    function GetIntDateDefaulted(const name : string): TDateTime;
+    function GetIntegerDefaulted(const name : string): Int64;
+    function GetStringDefaulted(const name : string): string;
+    function GetObjectDefaulted(const name : string): IJSONObject;
+    function GetArrayDefaulted(const name : string): IJSONArray;
+    function GetBytesDefaulted(const name : string): TArray<Byte>;
+    function GetGuidDefaulted(const name : string) : TGuid;
 
     procedure SetGuid(const name: string; const Value: TGuid);
     procedure SetBytes(const name : string; const Value: TArray<Byte>);
@@ -1128,15 +1207,39 @@ begin
   Result := FValues.Items[idx].ArrayValue;
 end;
 
+function TJSONArray.GetArrayDefaulted(const idx: integer): IJSONArray;
+begin
+  if (idx >= 0) and (idx < Count) then
+    Result := GetArray(idx)
+  else
+    Result := JSONArray;
+end;
+
 function TJSONArray.GetBoolean(const idx: integer): Boolean;
 begin
   VerifyType(FValues.Items[idx].ValueType, TJSONValueType.boolean);
   Result := FValues.Items[idx].IntegerValue <> 0;
 end;
 
+function TJSONArray.GetBooleanDefaulted(const idx: integer): Boolean;
+begin
+  if (idx >= 0) and (idx < Count) then
+    Result := GetBoolean(idx)
+  else
+    Result := False;
+end;
+
 function TJSONArray.GetBytes(const idx: integer): TArray<Byte>;
 begin
   Result := TNetEncoding.Base64.Decode(TEncoding.UTF8.GetBytes(Strings[idx]));
+end;
+
+function TJSONArray.GetBytesDefaulted(const idx: integer): TArray<Byte>;
+begin
+  if (idx >= 0) and (idx < Count) then
+    Result := GetBytes(idx)
+  else
+    SetLength(Result,0);
 end;
 
 function TJSONArray.GetCount: integer;
@@ -1154,9 +1257,25 @@ begin
 //  Result := ISO8601ToDate(GetString(idx));
 end;
 
+function TJSONArray.GetDateDefaulted(const idx: integer): TDateTime;
+begin
+  if (idx >= 0) and (idx < Count) then
+    Result := GetDate(idx)
+  else
+    Result := 0;
+end;
+
 function TJSONArray.GetGuid(const idx: integer): TGuid;
 begin
   Result := StringToGuid(Strings[idx]);
+end;
+
+function TJSONArray.GetGUIDDefaulted(const idx: integer): TGuid;
+begin
+  if (idx >= 0) and (idx < Count) then
+    Result := GetGUID(idx)
+  else
+    Result := TGUID.Empty;
 end;
 
 function TJSONArray.GetNumber(const idx: integer): Double;
@@ -1165,15 +1284,39 @@ begin
   Result := FValues.Items[idx].NumberValue;
 end;
 
+function TJSONArray.GetNumberDefaulted(const idx: integer): Double;
+begin
+  if (idx >= 0) and (idx < Count) then
+    Result := GetNumber(idx)
+  else
+    Result := 0;
+end;
+
 function TJSONArray.GetIntDate(const idx: Integer): TDateTime;
 begin
   Result := IncSecond(EncodeDate(1970,1,1),GetInteger(idx));
+end;
+
+function TJSONArray.GetIntDateDefaulted(const idx: integer): TDateTime;
+begin
+  if (idx >= 0) and (idx < Count) then
+    Result := GetIntDate(idx)
+  else
+    Result := 0;
 end;
 
 function TJSONArray.GetInteger(const idx: integer): Int64;
 begin
   VerifyType(FValues.Items[idx].ValueType, TJSONValueType.number);
   Result := FValues.Items[idx].IntegerValue;
+end;
+
+function TJSONArray.GetIntegerDefaulted(const idx: integer): Int64;
+begin
+  if (idx >= 0) and (idx < Count) then
+    Result := GetInteger(idx)
+  else
+    Result := 0;
 end;
 
 function TJSONArray.GetItem(const idx: integer): Variant;
@@ -1192,10 +1335,26 @@ begin
   //Result := ISO8601ToDate(GetString(idx),false);
 end;
 
+function TJSONArray.GetLocalDateDefaulted(const idx: integer): TDateTime;
+begin
+  if (idx >= 0) and (idx < Count) then
+    Result := GetLocalDate(idx)
+  else
+    Result := 0;
+end;
+
 function TJSONArray.GetObject(const idx: integer): IJSONObject;
 begin
   VerifyType(FValues.Items[idx].ValueType, TJSONValueType.&object);
   Result := FValues.Items[idx].ObjectValue;
+end;
+
+function TJSONArray.GetObjectDefaulted(const idx: integer): IJSONObject;
+begin
+  if (idx >= 0) and (idx < Count) then
+    Result := GetObject(idx)
+  else
+    Result := JSON;
 end;
 
 function TJSONArray.GetOnChange: TChangeArrayHandler;
@@ -1212,6 +1371,14 @@ function TJSONArray.GetString(const idx: integer): string;
 begin
   VerifyType(FValues.Items[idx].ValueType, TJSONValueType.string);
   Result := JSONDecode(FValues.Items[idx].StringValue);
+end;
+
+function TJSONArray.GetStringDefaulted(const idx: integer): string;
+begin
+  if (idx >= 0) and (idx < Count) then
+    Result := GetString(idx)
+  else
+    Result := '';
 end;
 
 function TJSONArray.GetType(const idx: integer): TJSONValueType;
@@ -2073,15 +2240,39 @@ begin
   Result := ValueOf[Name].ArrayValue;
 end;
 
+function TJSONObject.GetArrayDefaulted(const name: string): IJSONArray;
+begin
+  if Has[name] then
+    Result := GetArray(name)
+  else
+    Result := JSONArray;
+end;
+
 function TJSONObject.GetBoolean(const name: string): Boolean;
 begin
   VerifyType(ValueOf[Name].ValueType, TJSONValueType.boolean);
   Result := ValueOf[Name].IntegerValue <> 0;
 end;
 
+function TJSONObject.GetBooleanDefaulted(const name: string): Boolean;
+begin
+  if Has[name] then
+    Result := GetBoolean(name)
+  else
+    Result := False;
+end;
+
 function TJSONObject.GetBytes(const name: string): TArray<Byte>;
 begin
   Result := TNetEncoding.Base64.Decode(TEncoding.UTF8.GetBytes(Strings[name]));
+end;
+
+function TJSONObject.GetBytesDefaulted(const name: string): TArray<Byte>;
+begin
+  if Has[name] then
+    Result := GetBytes(name)
+  else
+    SetLength(Result,0)
 end;
 
 function TJSONObject.GetCount: integer;
@@ -2099,9 +2290,25 @@ begin
   //Result := ISO8601ToDate(GetString(name));
 end;
 
+function TJSONObject.GetDateDefaulted(const name: string): TDateTime;
+begin
+  if Has[name] then
+    Result := GetDate(name)
+  else
+    Result := 0;
+end;
+
 function TJSONObject.GetGuid(const name: string): TGuid;
 begin
   Result := StringToGuid(Strings[name]);
+end;
+
+function TJSONObject.GetGuidDefaulted(const name: string): TGuid;
+begin
+  if Has[name] then
+    Result := GetGuid(name)
+  else
+    Result := TGuid.Empty;
 end;
 
 function TJSONObject.GetHas(const name: string): boolean;
@@ -2115,15 +2322,39 @@ begin
   Result := ValueOf[Name].NumberValue;
 end;
 
+function TJSONObject.GetNumberDefaulted(const name: string): Double;
+begin
+  if Has[name] then
+    Result := GetNumber(name)
+  else
+    Result := 0;
+end;
+
 function TJSONObject.GetIntDate(const name: string): TDateTime;
 begin
   Result := IncSecond(EncodeDate(1970,1,1),GetInteger(name));
+end;
+
+function TJSONObject.GetIntDateDefaulted(const name: string): TDateTime;
+begin
+  if Has[name] then
+    Result := GetIntDate(name)
+  else
+    Result := 0;
 end;
 
 function TJSONObject.GetInteger(const name: string): Int64;
 begin
   VerifyType(ValueOf[Name].ValueType, TJSONValueType.number);
   Result := ValueOf[Name].IntegerValue;
+end;
+
+function TJSONObject.GetIntegerDefaulted(const name: string): Int64;
+begin
+  if Has[name] then
+    Result := GetInteger(name)
+  else
+    Result := 0;
 end;
 
 function TJSONObject.GetItem(const name: string): Variant;
@@ -2141,6 +2372,14 @@ begin
 //  Result := ISO8601ToDate(GetString(name),false);
 end;
 
+function TJSONObject.GetLocalDateDefaulted(const name: string): TDateTime;
+begin
+  if Has[name] then
+    Result := GetLocalDate(name)
+  else
+    Result := 0;
+end;
+
 function TJSONObject.GetName(const idx: integer): string;
 begin
   Result := FValues.Keys.ToArray[idx];
@@ -2151,6 +2390,14 @@ begin
   if ValueOf[Name].ValueType <> TJSONValueType.null then
     VerifyType(ValueOf[Name].ValueType, TJSONValueType.&object);
   Result := ValueOf[Name].ObjectValue;
+end;
+
+function TJSONObject.GetObjectDefaulted(const name: string): IJSONObject;
+begin
+  if Has[name] then
+    Result := GetObject(name)
+  else
+    Result := JSON
 end;
 
 function TJSONObject.GetOnChange: TChangeObjectHandler;
@@ -2169,11 +2416,18 @@ begin
   Result := JSONDecode(ValueOf[Name].StringValue);
 end;
 
+function TJSONObject.GetStringDefaulted(const name: string): string;
+begin
+  if Has[name] then
+    Result := GetString(name)
+  else
+    Result := '';
+end;
+
 function TJSONObject.GetType(const name: string): TJSONValueType;
 begin
   Result := ValueOf[Name].ValueType;
 end;
-
 
 function TJSONObject.GetValue(const name: string): PMultiValue;
 begin
