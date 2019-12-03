@@ -40,6 +40,7 @@ uses System.SysUtils, System.Classes, System.JSON
 
 type
 {$SCOPEDENUMS ON}
+  EInvalidJSONType = class(Exception);
   TProcConst<T> = reference to procedure(const Arg1: T);
   TProcConst<T1,T2> = reference to procedure (const Arg1: T1; const Arg2: T2);
 
@@ -236,6 +237,28 @@ type
     function GetHas(const name : string): Boolean;
     function GetCount: integer;
 
+    function GetAsGUID : TGuid;
+    function GetAsBytes : TArray<Byte>;
+    function GetAsString : string;
+    function GetAsNumber : Double;
+    function GetAsDate : TDateTime;
+    function GetAsLocalDate : TDateTime;
+    function GetAsIntDate : TDateTime;
+    function GetAsBoolean : Boolean;
+    function GetAsArray : IJSONArray;
+    function GetIsNull : boolean;
+
+    procedure SetAsArray(const Value: IJSONArray);
+    procedure SetAsBoolean(const Value: Boolean);
+    procedure SetAsBytes(const Value: TArray<Byte>);
+    procedure SetAsDate(const Value: TDateTime);
+    procedure SetAsGUID(const Value: TGuid);
+    procedure SetAsIntDate(const Value: TDateTime);
+    procedure SetAsLocalDate(const Value: TDateTime);
+    procedure SetAsNumber(const Value: Double);
+    procedure SetAsString(const Value: string);
+    procedure SetIsNull(const Value : boolean);
+
     function GetBoolean(const name : string): Boolean;
     function GetNumber(const name : string): Double;
     function GetDate(const name : string): TDateTime;
@@ -363,6 +386,22 @@ type
     property Count : integer read GetCount;
     property Names[const idx : integer] : string read GetName;
     property Has[const name : string] : boolean read GetHas;
+
+    property AsGUID : TGuid read GetAsGUID write SetAsGUID;
+    property AsBytes : TArray<Byte> read GetAsBytes write SetAsBytes;
+    property AsString : string read GetAsString write SetAsString;
+    property AsNumber : Double read GetAsNumber write SetAsNumber;
+    property AsDate : TDateTime read GetAsDate write SetAsDate;
+    property AsLocalDate : TDateTime read GetAsLocalDate write SetAsLocalDate;
+    property AsIntDate : TDateTime read GetAsIntDate write SetAsIntDate;
+    property AsBoolean : Boolean read GetAsBoolean write SetAsBoolean;
+    property AsArray : IJSONArray read GetAsArray write SetAsArray;
+    property IsNull : boolean read GetIsNull write SetIsNull;
+    function AsObject : IJSONObject;
+    function IsSimpleValue : boolean;
+    function ValueType : TJSONValueType;
+    function AsValue : TMultiValue;
+
   end;
 
 function JSON(const src : string = '') : IJSONObject;
@@ -539,8 +578,10 @@ type
 
   TJSONObject = class(TInterfacedObject, IJSONObject)
   private
+    FSimpleValue : TMultiValue;
+    FIsSimpleValue : boolean;
     FUpdating: Boolean;
-    FOnChangeHandler: TChangeObjectHandler; // IJSONObject
+    FOnChangeHandler: TChangeObjectHandler;
 
     function GetRaw(const name: string): PMultiValue;
     procedure SetRaw(const name: string; const Value: PMultiValue);
@@ -599,7 +640,29 @@ type
     function GetValueOf(const name: string): PMultiValue;
     function GetOnChange: TChangeObjectHandler;
     procedure SetOnChange(const Value: TChangeObjectHandler);
+    function GetIsNull: boolean;
+    procedure SetIsNull(const Value: boolean);
     property ValueOf[const name : string] : PMultiValue read GetValueOf;
+
+    function GetAsGUID : TGuid;
+    function GetAsBytes : TArray<Byte>;
+    function GetAsString : string;
+    function GetAsNumber : Double;
+    function GetAsDate : TDateTime;
+    function GetAsLocalDate : TDateTime;
+    function GetAsIntDate : TDateTime;
+    function GetAsBoolean : Boolean;
+    function GetAsArray : IJSONArray;
+    procedure SetAsArray(const Value: IJSONArray);
+    procedure SetAsBoolean(const Value: Boolean);
+    procedure SetAsBytes(const Value: TArray<Byte>);
+    procedure SetAsDate(const Value: TDateTime);
+    procedure SetAsGUID(const Value: TGuid);
+    procedure SetAsIntDate(const Value: TDateTime);
+    procedure SetAsLocalDate(const Value: TDateTime);
+    procedure SetAsNumber(const Value: Double);
+    procedure SetAsString(const Value: string);
+
   public  // IJSONObject
     procedure Each(proc : TProcConst<string, PMultiValue>); overload;
     procedure Add(const name : string; const value : PMultiValue); overload;
@@ -669,6 +732,22 @@ type
     property Count : integer read GetCount;
     property Names[const idx : integer] : string read GetName;
     property Has[const name : string] : boolean read GetHas;
+
+    property AsGUID : TGuid read GetAsGUID write SetAsGUID;
+    property AsBytes : TArray<Byte> read GetAsBytes write SetAsBytes;
+    property AsString : string read GetAsString write SetAsString;
+    property AsNumber : Double read GetAsNumber write SetAsNumber;
+    property AsDate : TDateTime read GetAsDate write SetAsDate;
+    property AsLocalDate : TDateTime read GetAsLocalDate write SetAsLocalDate;
+    property AsIntDate : TDateTime read GetAsIntDate write SetAsIntDate;
+    property AsBoolean : Boolean read GetAsBoolean write SetAsBoolean;
+    property AsArray : IJSONArray read GetAsArray write SetAsArray;
+    property IsNull : boolean read GetIsNull write SetIsNull;
+
+    function AsObject : IJSONObject;
+    function IsSimpleValue : boolean;
+    function ValueType : TJSONValueType;
+    function AsValue : TMultiValue;
 
     constructor Create; overload; virtual;
     destructor Destroy; override;
@@ -2056,25 +2135,115 @@ begin
   Result := Result+'}';
 end;
 
+function TJSONObject.GetAsArray: IJSONArray;
+begin
+  if IsSimpleValue and (ValueType = TJSONValueType.&Array) then
+    Result := FSimpleValue.ArrayValue
+  else
+    raise EInvalidJSONType.Create('JSON Object is not an Array');
+end;
+
+function TJSONObject.GetAsBoolean: Boolean;
+begin
+  if IsSimpleValue and (ValueType = TJSONValueType.&boolean) then
+    Result := FSimpleValue.IntegerValue <> 0
+  else
+    raise EInvalidJSONType.Create('JSON Object is not a Boolean');
+end;
+
+function TJSONObject.GetAsBytes: TArray<Byte>;
+begin
+  if IsSimpleValue and (ValueType = TJSONValueType.&string) then
+    Result := TNetEncoding.Base64.Decode(TEncoding.UTF8.GetBytes(FSimpleValue.StringValue))
+  else
+    raise EInvalidJSONType.Create('JSON Object is not a byte array');
+end;
+
+function TJSONObject.GetAsDate: TDateTime;
+var
+  TempDate: TDateTime;
+begin
+  Result := 0.0;
+  if IsSimpleValue and (ValueType = TJSONValueType.&string) then
+    if TryISO8601ToDate(FSimpleValue.StringValue,TempDate) then
+    begin
+      Result := TempDate;
+    end
+  else
+    raise EInvalidJSONType.Create('JSON Object is not a date');
+end;
+
+function TJSONObject.GetAsGUID: TGuid;
+begin
+  if IsSimpleValue and (ValueType = TJSONValueType.&string) then
+    Result := StringToGuid(FSimpleValue.StringValue)
+  else
+    raise EInvalidJSONType.Create('JSON Object is not a GUID');
+end;
+
+function TJSONObject.GetAsIntDate: TDateTime;
+begin
+  if IsSimpleValue and (ValueType = TJSONValueType.&number) then
+    Result := IncSecond(EncodeDate(1970,1,1),FSimpleValue.IntegerValue)
+  else
+    raise EInvalidJSONType.Create('JSON Object is not an integer');
+
+end;
+
 procedure TJSONObject.AsJSON(Result: {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   item : TPair<string, PMultiValue>;
   bFirst : boolean;
 begin
-  Result.Append('{');
-  bFirst := True;
-  for item in FValues do
+  if FIsSimpleValue then
   begin
-    if not bFirst then
-      Result.Append(WhiteCharAfter(',', Whitespace)+'"'+item.Key+'"'+WhiteChar(':', Whitespace))
-    else
-      Result.Append('"'+item.Key+'"'+WhiteChar(':', Whitespace));
-    item.Value.AsJSON(Result);
-    bFirst := False;
+    Result.Append(FSimpleValue.AsJSON);
+  end else
+  begin
+    Result.Append('{');
+    bFirst := True;
+    for item in FValues do
+    begin
+      if not bFirst then
+        Result.Append(WhiteCharAfter(',', Whitespace)+'"'+item.Key+'"'+WhiteChar(':', Whitespace))
+      else
+        Result.Append('"'+item.Key+'"'+WhiteChar(':', Whitespace));
+      item.Value.AsJSON(Result);
+      bFirst := False;
+    end;
+    Result.Append('}');
   end;
-  Result.Append('}');
 end;
 
+
+function TJSONObject.GetAsLocalDate: TDateTime;
+var
+  TempDate: TDateTime;
+begin
+  Result := 0.0;
+  if IsSimpleValue and (ValueType = TJSONValueType.&string) then
+    if TryISO8601ToDate(FSimpleValue.StringValue, TempDate, false) then
+    begin
+      Result := TempDate;
+    end
+  else
+    raise EInvalidJSONType.Create('JSON Object is not a date');
+end;
+
+function TJSONObject.GetAsNumber: Double;
+begin
+  if IsSimpleValue and (ValueType = TJSONValueType.&Number) then
+    Result := FSimpleValue.NumberValue
+  else
+    raise EInvalidJSONType.Create('JSON Object is not a number');
+end;
+
+function TJSONObject.AsObject: IJSONObject;
+begin
+  if IsSimpleValue then
+    raise EInvalidJSONType.Create('JSON Object is a simple value');
+  Result := Self;
+end;
 
 function TJSONObject.AsSHA1(Whitespace: TWhitespace): string;
 var
@@ -2083,6 +2252,22 @@ begin
   LSHA2 := THashSHA1.Create;
   LSHA2.Update(TEncoding.UTF8.GetBytes(AsJSON(Whitespace)));
   Result := LSHA2.HashAsString.ToUpper;
+end;
+
+function TJSONObject.GetAsString: string;
+begin
+  if IsSimpleValue and (ValueType = TJSONValueType.&String) then
+    Result := FSimpleValue.StringValue
+  else
+    raise EInvalidJSONType.Create('JSON Object is not a string');
+end;
+
+function TJSONObject.AsValue: TMultiValue;
+begin
+  if IsSimpleValue then
+    Result := FSimpleValue
+  else
+    raise EInvalidJSONType.Create('JSON Object is not a simple value');
 end;
 
 procedure TJSONObject.BeginUpdates;
@@ -2357,6 +2542,11 @@ begin
     Result := 0;
 end;
 
+function TJSONObject.GetIsNull: boolean;
+begin
+  Result := FSimpleValue.ValueType = TJSONValueType.Null;
+end;
+
 function TJSONObject.GetItem(const name: string): Variant;
 begin
   Result := ValueOf[Name].ToVariant;
@@ -2441,6 +2631,11 @@ begin
   else
     raise EChimeraJSONException.Create('Object is missing the "'+name+'" property.');
 
+end;
+
+function TJSONObject.IsSimpleValue: boolean;
+begin
+  Result := FIsSimpleValue;
 end;
 
 function TJSONObject.LoadFromFile(const Filename: string) : IJSONObject;
@@ -2679,10 +2874,74 @@ begin
   DoChangeNotify;
 end;
 
+procedure TJSONObject.SetAsArray(const Value: IJSONArray);
+begin
+  FIsSimpleValue := True;
+  Clear;
+  FSimpleValue := TMultiValue.Initialize(Value);
+end;
+
+procedure TJSONObject.SetAsBoolean(const Value: Boolean);
+begin
+  FIsSimpleValue := True;
+  Clear;
+  FSimpleValue := TMultiValue.Initialize(Value);
+end;
+
+procedure TJSONObject.SetAsBytes(const Value: TArray<Byte>);
+begin
+  FIsSimpleValue := True;
+  Clear;
+  FSimpleValue := TMultiValue.Initialize(TNetEncoding.Base64.Encode(Value), True);
+end;
+
+procedure TJSONObject.SetAsDate(const Value: TDateTime);
+begin
+  FIsSimpleValue := True;
+  Clear;
+  FSimpleValue := TMultiValue.Initialize(Value, True);
+end;
+
+procedure TJSONObject.SetAsGUID(const Value: TGuid);
+begin
+  FIsSimpleValue := True;
+  Clear;
+  FSimpleValue := TMultiValue.Initialize(GUIDToString(Value), True);
+end;
+
+procedure TJSONObject.SetAsIntDate(const Value: TDateTime);
+begin
+  FIsSimpleValue := True;
+  Clear;
+  FSimpleValue := TMultiValue.Initialize(SecondsBetween(EncodeDate(1970,1,1), Value));
+end;
+
+procedure TJSONObject.SetAsLocalDate(const Value: TDateTime);
+begin
+  FIsSimpleValue := True;
+  Clear;
+  FSimpleValue := TMultiValue.Initialize(DateToISO8601(Value,false),True);
+end;
+
+procedure TJSONObject.SetAsNumber(const Value: Double);
+begin
+  FIsSimpleValue := True;
+  Clear;
+  FSimpleValue := TMultiValue.Initialize(Value);
+end;
+
+procedure TJSONObject.SetAsString(const Value: string);
+begin
+  FIsSimpleValue := True;
+  Clear;
+  FSimpleValue := TMultiValue.Initialize(Value);
+end;
+
 procedure TJSONObject.SetBoolean(const name: string; const Value: Boolean);
 var
   pmv : PMultiValue;
 begin
+  FIsSimpleValue := False;
   New(pmv);
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
@@ -2708,6 +2967,7 @@ procedure TJSONObject.SetNumber(const name: string; const Value: Double);
 var
   pmv : PMultiValue;
 begin
+  FIsSimpleValue := False;
   New(pmv);
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
@@ -2723,16 +2983,25 @@ procedure TJSONObject.SetInteger(const name: string; const Value: Int64);
 var
   pmv : PMultiValue;
 begin
+  FIsSimpleValue := False;
   New(pmv);
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
   DoChangeNotify;
 end;
 
+procedure TJSONObject.SetIsNull(const Value: boolean);
+begin
+  FIsSimpleValue := True;
+  Clear;
+  FSimpleValue.InitializeNull;
+end;
+
 procedure TJSONObject.SetItem(const name: string; const Value: Variant);
 var
   pmv : PMultiValue;
 begin
+  FIsSimpleValue := False;
   if not FValues.ContainsKey(name) then
   begin
     New(pmv);
@@ -2755,6 +3024,7 @@ procedure TJSONObject.SetObject(const name: string; const Value: IJSONObject);
 var
   pmv : PMultiValue;
 begin
+  FIsSimpleValue := False;
   New(pmv);
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
@@ -2771,6 +3041,7 @@ procedure TJSONObject.SetRaw(const name: string; const Value: PMultiValue);
 var
   pmv : PMultiValue;
 begin
+  FIsSimpleValue := False;
   New(pmv);
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);
@@ -2781,8 +3052,10 @@ procedure TJSONObject.SetString(const name, Value: string);
 var
   pmv : PMultiValue;
 begin
+  FIsSimpleValue := False;
   New(pmv);
   pmv.Initialize(JSONEncode(Value));
+
   FValues.AddOrSetValue(Name, pmv);
   DoChangeNotify;
 end;
@@ -2791,6 +3064,7 @@ procedure TJSONObject.SetType(const name: string; const Value: TJSONValueType);
 var
   mv : PMultiValue;
 begin
+  FIsSimpleValue := False;
   mv := ValueOf[Name];
 
   if mv.ValueType <> Value then
@@ -2813,6 +3087,11 @@ begin
   DoChangeNotify;
 end;
 
+function TJSONObject.ValueType: TJSONValueType;
+begin
+  Result := FSimpleValue.ValueType;
+end;
+
 procedure TJSONObject.Add(const name: string; const value: PMultiValue);
 begin
   Raw[name] := value;
@@ -2822,6 +3101,7 @@ procedure TJSONObject.Add(const name: string; const value: Variant);
 var
   pmv : PMultiValue;
 begin
+  FIsSimpleValue := False;
   New(pmv);
   pmv.Initialize(Value);
   FValues.AddOrSetValue(Name, pmv);

@@ -412,6 +412,32 @@ begin
 end;
 
 function TParser.Execute(const AText: string): IJSONObject;
+  function SimpleJSONValue : IJSONObject;
+  begin
+    Result := JSON;
+    case FToken of
+      TParser.TParseToken.String:
+        Result.AsString := FTokenValue.StringValue;
+      TParser.TParseToken.Value:
+        case FTokenValue.ValueType of
+          TJSONValueType.string:
+            Result.AsString := FTokenValue.StringValue;
+          TJSONValueType.number:
+            Result.AsNumber := FTokenValue.NumberValue;
+          TJSONValueType.array:
+            Result.AsArray := FTokenValue.ArrayValue;
+          TJSONValueType.object:
+            Result := FTokenValue.ObjectValue;
+          TJSONValueType.boolean:
+            Result.AsBoolean := FTokenValue.IntegerValue <> 0;
+          TJSONValueType.null:
+            Result.IsNull := True
+        end;
+
+      TParser.TParseToken.OpenArray:
+        Result.AsArray := ParseArray;
+    end;
+  end;
 begin
   if Trim(AText) = '' then
   begin
@@ -425,7 +451,21 @@ begin
 
   if GetToken then
     exit;
-  Result := ParseObject;
+  case FToken of
+    TParser.TParseToken.OpenObject:
+      Result := ParseObject;
+    TParser.TParseToken.String,
+    TParser.TParseToken.Value,
+    TParser.TParseToken.OpenArray:
+      Result := SimpleJSONValue;
+    TParser.TParseToken.Colon,
+    TParser.TParseToken.CloseObject,
+    TParser.TParseToken.CloseArray,
+    TParser.TParseToken.Comma,
+    TParser.TParseToken.EOF,
+    TParser.TParseToken.MaxOp:
+      raise EParserError.Create('Invalid JSON string');
+  end;
 end;
 
 function TParser.ExecuteForArray(const AText : string) : IJSONArray;
