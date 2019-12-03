@@ -135,6 +135,7 @@ var
   i, iCnt : integer;
   iStart : integer;
   j: Integer;
+  sVal : string;
 begin
   FTmpIdent.Clear;
   while FIndex <= FTextLength do
@@ -236,14 +237,15 @@ begin
       else
       begin
         FToken := TParseToken.Value;
-        if TryStrToFloat(FTmpIdent.ToString,d, FFmt) then
+        sVal := FTmpIdent.ToString;
+        if TryStrToFloat(sVal, d, FFmt) then
           FTokenValue.Initialize(d)
-        else if TryStrToBool(FTmpIdent.ToString,b) then
+        else if TryStrToBool(sVal,b) then
           FTokenValue.Initialize(b)
-        else if FTmpIdent.ToString = 'null' then
+        else if sVal = 'null' then
           FTokenValue.InitializeNull
         else
-          raise EChimeraParseException.Create('Unexpected Value "'+FTmpIdent.ToString+'"');
+          raise EChimeraParseException.Create('Unexpected Value "'+sVal+'"');
       end;
     end;
   end else
