@@ -2,10 +2,16 @@ unit chimera.json.helpers;
 
 interface
 
-uses System.Classes, chimera.json, System.Rtti;
+uses
+  System.Classes,
+  System.Generics.Collections,
+  chimera.json,
+  System.Rtti;
 
 type
   TObjectHelper = class helper for TObject
+  private
+    class var FTags : TDictionary<TObject, IJSONObject>;
   private
     function RTTITypeToJSONType(kind : TTypeKind) : TJSONValueType;
     function GetAsJSONObject : IJSONObject;
@@ -16,9 +22,15 @@ type
     function GenerateJSONArray(ary: TValue): IJSONArray;
     procedure ApplyJSONObject(jso : IJSONObject; obj : TObject);
     procedure ApplyJSONArray(jsa : IJSONArray; val : TValue);
+    function GetTagJSON : IJSONObject;
+    procedure SetTagJSON(AValue : IJSONObject);
   public
+    class constructor Create;
+    class destructor Destroy;
+
     property AsJSON : String read GetAsJSON write SetAsJSON;
     property AsJSONObject : IJSONObject read GetAsJSONObject write SetAsJSONObject;
+    property TagJSON : IJSONObject read GetTagJSON write SetTagJSON;
   end;
 
 
@@ -109,6 +121,16 @@ begin
 
     end
   );
+end;
+
+class constructor TObjectHelper.Create;
+begin
+  FTags := TDictionary<TObject, IJSONObject>.Create;
+end;
+
+class destructor TObjectHelper.Destroy;
+begin
+  FTags.Free;
 end;
 
 function TObjectHelper.GenerateJSONArray(ary : TValue) : IJSONArray;
@@ -239,6 +261,19 @@ begin
   Result := jso;
 end;
 
+function TObjectHelper.GetTagJSON: IJSONObject;
+begin
+  TMonitor.Enter(FTags);
+  try
+    if FTags.ContainsKey(Self) then
+      Result := FTags[Self]
+    else
+      Result := nil;
+  finally
+    TMonitor.Exit(FTags);
+  end;
+end;
+
 function TObjectHelper.RTTITypeToJSONType(kind: TTypeKind): TJSONValueType;
 begin
   case kind of
@@ -292,6 +327,16 @@ end;
 procedure TObjectHelper.SetAsJSONObject(const Obj: IJSONObject);
 begin
   ApplyJSONObject(obj, self);
+end;
+
+procedure TObjectHelper.SetTagJSON(AValue: IJSONObject);
+begin
+  TMonitor.Enter(FTags);
+  try
+    FTags.AddOrSetValue(Self, AValue);
+  finally
+    Tmonitor.Exit(FTags);
+  end;
 end;
 
 end.
