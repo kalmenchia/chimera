@@ -169,7 +169,9 @@ type
 
 implementation
 
-uses System.Hash, System.DateUtils;
+uses
+  System.Hash,
+  System.DateUtils;
 
 type
   TListenerThread = class(TThread)
@@ -641,6 +643,7 @@ procedure TBayeuxClient.ProcessResponseObject(const obj: IJSONObject);
 var
   sChannel : string;
   p : ISubHandler;
+  jso : IJSONObject;
 begin
   if obj.Has['successful'] then
   begin
@@ -707,19 +710,23 @@ begin
     begin
       FDispatcherCS.BeginRead;
       try
-        if IsResubPingMessage(obj.Objects['data']) then
-        begin
-          p := FDispatcher[obj.Strings['channel']];
-          p.SentPing := False;
-          p.LastStamp := Now;
-        end else if FDispatcher.ContainsKey(obj.Strings['channel']) then
-        begin
-          p := FDispatcher[obj.Strings['channel']];
-          p.Handler(obj.Objects['data']);
-        end;
-
+        p := FDispatcher[obj.Strings['channel']];
      finally
         FDIspatcherCS.EndRead;
+      end;
+      if IsResubPingMessage(obj.Objects['data']) then
+      begin
+        p.SentPing := False;
+        p.LastStamp := Now;
+      end else if FDispatcher.ContainsKey(obj.Strings['channel']) then
+      begin
+        jso := obj.Objects['data'];
+        TTask.Run(
+          procedure
+          begin
+            p.Handler(jso);
+          end
+        );
       end;
     end;
   end;
