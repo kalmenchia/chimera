@@ -1,3 +1,5 @@
+// Delphi 10.4
+
 {$IFDEF CONDITIONALEXPRESSIONS}
   // Must be at the top...
   {$IF CompilerVersion >= 24.0}
@@ -351,7 +353,7 @@
   {$ENDIF}
 {$ENDIF}
 
-//Delphi & CBuilder XE9 (Aitana)
+
 {$IFDEF VER310}
   {$DEFINE VCL_XE9}
   {$IFDEF CBUILDER}
@@ -362,7 +364,7 @@
 {$ENDIF}
 
 
-//Delphi & CBuilder XE9 (Aitana)
+
 {$IFDEF VER320}
   {$DEFINE VCL_XE9}
   {$IFDEF CBUILDER}
@@ -372,7 +374,7 @@
   {$ENDIF}
 {$ENDIF}
 
-//Delphi & CBuilder XE9 (Aitana)
+// rio
 {$IFDEF VER330}
   {$DEFINE VCL_XE9}
   {$IFDEF CBUILDER}
@@ -381,6 +383,27 @@
     {$DEFINE DELPHI_XE9}
   {$ENDIF}
 {$ENDIF}
+
+// TOKYO
+{$IFDEF VER340}
+  {$DEFINE VCL_XE9}
+  {$IFDEF CBUILDER}
+    {$DEFINE CBUILDER_XE9}
+  {$ELSE}
+    {$DEFINE DELPHI_XE9}
+  {$ENDIF}
+{$ENDIF}
+
+// WHATEVER IS AFTER TOKYO
+{$IFDEF VER350}
+  {$DEFINE VCL_XE9}
+  {$IFDEF CBUILDER}
+    {$DEFINE CBUILDER_XE9}
+  {$ELSE}
+    {$DEFINE DELPHI_XE9}
+  {$ENDIF}
+{$ENDIF}
+
 
 // Delphi.NET
 // Covers D8+
