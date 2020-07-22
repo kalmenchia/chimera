@@ -36,7 +36,6 @@ requires
   IndyCore;
 
 contains
-  chimera.utility.http in '..\pubsub\chimera.utility.http.pas',
   chimera.utility in 'chimera.utility.pas';
 
 end.
