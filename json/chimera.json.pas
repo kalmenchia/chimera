@@ -226,6 +226,7 @@ type
     property Values[const idx : integer] : PMultiValue read GetValue;
 
     property Count : integer read GetCount write SetCount;
+    function Clone : IJSONArray;
   end;
 
   IJSONObject = interface(IInterface)
@@ -402,6 +403,8 @@ type
     function ValueType : TJSONValueType;
     function AsValue : TMultiValue;
 
+    function Clone : IJSONObject;
+
   end;
 
 function JSON(const src : string = '') : IJSONObject;
@@ -495,6 +498,7 @@ type
   private
     FValues : TList<PMultiValue>;
     procedure EnsureSize(const idx : integer);
+    function Clone : IJSONArray;
   public // IJSONArray
 
     procedure Add(const value : PMultiValue); overload;
@@ -634,6 +638,7 @@ type
     function GetHas(const name: string): boolean;
     //procedure ParentOverride(parent : IJSONArray); overload;
     //procedure ParentOverride(parent : IJSONObject); overload;
+    function Clone : IJSONObject;
   private
     FValues : TDictionary<string, PMultiValue>;
     procedure DisposeOfValue(Sender: TObject; const Item: PMultiValue; Action: TCollectionNotification);
@@ -1122,6 +1127,11 @@ begin
       FValues[0].ObjectValue.OnChange := nil;
     Delete(0);
   end;
+end;
+
+function TJSONArray.Clone: IJSONArray;
+begin
+  Result := JSONArray(Self.AsJSON);
 end;
 
 {constructor TJSONArray.Create(Parent : IJSONObject);
@@ -2284,6 +2294,11 @@ begin
       mv.Value.ObjectValue.OnChange := nil;
 
   FValues.Clear;
+end;
+
+function TJSONObject.Clone: IJSONObject;
+begin
+  Result := JSON(Self.AsJSON);
 end;
 
 constructor TJSONObject.Create;
