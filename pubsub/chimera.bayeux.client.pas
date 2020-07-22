@@ -39,7 +39,9 @@ uses System.SysUtils, System.Classes, System.Generics.Collections, chimera.json,
 
 type
   TRetryMode = (retry, handshake, none);
+  TSimpleMethod = procedure of object;
   TMessageHandler = reference to procedure(const Msg : IJSONObject);
+  TMessageMethod = procedure(const Channel : string; const Msg : IJSONObject) of object;
   TStringHandler = reference to procedure(const Msg : string);
   TClientIDHandler = reference to procedure(const OldID, NewID : string);
   TErrorHandler = reference to procedure(const channel, error : string);
@@ -143,13 +145,17 @@ type
   public
     constructor Create(const Endpoint : string; DeferConnect : boolean = false;
       const OnHandshakeComplete : TProc = nil; const OnLogMessage : TMessageHandler = nil;
-      const OnLogResponse : TMessageHandler = nil; const InitialClientID : string = '');
+      const OnLogResponse : TMessageHandler = nil; const InitialClientID : string = ''); overload;
+    constructor Create(const Endpoint : string; DeferConnect : boolean;
+      const OnHandshakeComplete : TSimpleMethod; const OnLogMessage : TMessageHandler = nil;
+      const OnLogResponse : TMessageHandler = nil; const InitialClientID : string = ''); overload;
     destructor Destroy; override;
 
     function GenerateResubPingMessage : IJSONObject; virtual;
     function IsResubPingMessage(const jso : IJSONObject) : boolean; virtual;
 
-    procedure Subscribe(const Channel : string; const OnMessage : TMessageHandler);
+    procedure Subscribe(const Channel : string; const OnMessage : TMessageMethod); overload;
+    procedure Subscribe(const Channel : string; const OnMessage : TMessageHandler); overload;
     procedure Unsubscribe(const Channel : string);
     procedure Publish(const Channel : string; const Msg : IJSONObject);
     property OnLogMessage : TMessageHandler read FOnLogMessage write FOnLogMessage;
@@ -294,6 +300,23 @@ begin
     end
   );
   ResubPingerThread.Start;
+end;
+
+constructor TBayeuxClient.Create(const Endpoint: string; DeferConnect: boolean;
+  const OnHandshakeComplete: TSimpleMethod; const OnLogMessage,
+  OnLogResponse: TMessageHandler; const InitialClientID: string);
+begin
+  Create(
+    Endpoint,
+    DeferConnect,
+    procedure
+    begin
+      OnHandshakeComplete();
+    end,
+    OnLogMessage,
+    OnLogResponse,
+    InitialClientID
+  );
 end;
 
 destructor TBayeuxClient.Destroy;
@@ -881,6 +904,17 @@ begin
     FListener := TListenerThread.Create(Self, OnReady);
   end else if Assigned(OnReady) then
     OnReady();
+end;
+
+procedure TBayeuxClient.Subscribe(const Channel: string;
+  const OnMessage: TMessageMethod);
+begin
+  Subscribe(Channel,
+    procedure(const Msg : IJSONObject)
+    begin
+      OnMessage(Channel, Msg);
+    end
+  );
 end;
 
 procedure TBayeuxClient.Subscribe(const Channel: string;
