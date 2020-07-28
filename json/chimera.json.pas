@@ -58,7 +58,7 @@ type
 
   EChimeraJSONException = class(EChimeraException);
 
-  TWhitespace = (compact, standard);
+  TWhitespace = (compact, standard, pretty);
 
   PMultiValue = ^TMultiValue;
   TMultiValue = record
@@ -762,7 +762,8 @@ function WhiteChar(c : Char; Whitespace : TWhitespace) : String; inline;
 begin
   case Whitespace of
     TWhitespace.compact: Result := c;
-    TWhitespace.standard: Result := ' '+c+' ';
+    TWhitespace.standard,
+    TWhitespace.pretty : Result := ' '+c+' ';
   end;
 end;
 
@@ -770,7 +771,8 @@ function WhiteCharBefore(c : Char; Whitespace : TWhitespace) : String; inline;
 begin
   case Whitespace of
     TWhitespace.compact: Result := c;
-    TWhitespace.standard: Result := ' '+c;
+    TWhitespace.standard,
+    TWhitespace.pretty : Result := ' '+c;
   end;
 end;
 
@@ -778,7 +780,8 @@ function WhiteCharAfter(c : Char; Whitespace : TWhitespace) : String; inline;
 begin
   case Whitespace of
     TWhitespace.compact: Result := c;
-    TWhitespace.standard: Result := c+' ';
+    TWhitespace.standard,
+    TWhitespace.pretty : Result := c+' ';
   end;
 end;
 
@@ -1097,21 +1100,39 @@ begin
       Result := Result+WhiteChar(',', Whitespace);
     FValues[i].AsJSON(Result);
   end;
-  Result := Result+']';
+  if Whitespace = TWhitespace.pretty then
+    Result := FormatJSON(Result+']')
+  else
+    Result := Result+']';
 end;
 
 procedure TJSONArray.AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   i: Integer;
+  sb : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
 begin
-  Result.Append('[');
-  for i := 0 to FValues.Count-1 do
-  begin
-    if i > 0 then
-      Result.Append(WhiteChar(',', Whitespace));
-    FValues[i].AsJSON(Result);
+  if Whitespace = TWhitespace.pretty then
+    sb := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create
+  else
+    sb := Result;
+  try
+    sb.Append('[');
+    for i := 0 to FValues.Count-1 do
+    begin
+      if i > 0 then
+        sb.Append(WhiteChar(',', Whitespace));
+      FValues[i].AsJSON(sb);
+    end;
+    sb.Append(']');
+
+    if Whitespace = TWhitespace.pretty then
+    begin
+      Result.Append(FormatJSON(sb.ToString));
+    end;
+  finally
+    if sb <> Result then
+      sb.Free;
   end;
-  Result.Append(']');
 end;
 
 procedure TJSONArray.BeginUpdates;
