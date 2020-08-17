@@ -143,7 +143,7 @@ type
   public
     constructor Create(const Endpoint : string; DeferConnect : boolean = false;
       const OnHandshakeComplete : TProc = nil; const OnLogMessage : TMessageHandler = nil;
-      const OnLogResponse : TMessageHandler = nil; const InitialClientID : string = '');
+      const OnLogResponse : TMessageHandler = nil; const InitialClientID : string = ''); virtual;
     destructor Destroy; override;
 
     function GenerateResubPingMessage : IJSONObject; virtual;
