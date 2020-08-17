@@ -145,7 +145,7 @@ type
   public
     constructor Create(const Endpoint : string; DeferConnect : boolean = false;
       const OnHandshakeComplete : TProc = nil; const OnLogMessage : TMessageHandler = nil;
-      const OnLogResponse : TMessageHandler = nil; const InitialClientID : string = ''); overload;
+      const OnLogResponse : TMessageHandler = nil; const InitialClientID : string = ''); overload; virtual;
     constructor Create(const Endpoint : string; DeferConnect : boolean;
       const OnHandshakeComplete : TSimpleMethod; const OnLogMessage : TMessageHandler = nil;
       const OnLogResponse : TMessageHandler = nil; const InitialClientID : string = ''); overload;
