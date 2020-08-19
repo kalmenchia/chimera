@@ -3238,6 +3238,7 @@ begin
   Self.ObjectValue := nil;
   Self.IntegerValue := 0;
   Self.StringValue := '';
+  Self.NumberValue := 0;
   Result := Self;
 end;
 
