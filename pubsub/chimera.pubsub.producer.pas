@@ -42,7 +42,7 @@ type
   TPubSubAuthEvent = procedure(Sender : TObject; Request : TWebRequest; const channel : string; var Permitted : boolean) of object;
   TParseChannelEvent = procedure(Sender : TObject; Request : TWebRequest; var Value : string) of object;
   TParseDataEvent = procedure(Sender : TObject; Request : TWebRequest; var Value : IJSONObject) of object;
-  TPubSubProducer = class(TCustomContentProducer)
+  TPubSubProducer = class(TCustomContentProducer, IProduceContent)
   strict private
     class var FPubSub : TPubSub<IJSONObject>;
   private
@@ -142,6 +142,7 @@ end;
 constructor TPubSubProducer.Create(AOwner: TComponent);
 begin
   inherited;
+  SetAppDispatcher(AOwner);
   FTimeout := -1;
 end;
 
