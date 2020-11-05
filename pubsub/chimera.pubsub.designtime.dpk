@@ -30,10 +30,12 @@ package chimera.pubsub.designtime;
 {$IMPLICITBUILD OFF}
 
 requires
-  rtl,
-  chimera.pubsub.runtime,
   chimera.pubsub.indy.runtime,
-  chimera.pubsub.webbroker.runtime;
+  IndyCore,
+  IndyProtocols,
+  chimera.pubsub.runtime,
+  chimera.pubsub.webbroker.runtime,
+  IndySystem;
 
 contains
   chimera.pubsub.register in 'chimera.pubsub.register.pas';

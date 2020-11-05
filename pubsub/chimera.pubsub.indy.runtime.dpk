@@ -35,8 +35,7 @@ requires
   chimera.json.runtime,
   IndySystem,
   IndyProtocols,
-  IndyCore,
-  chimera.utility.runtime;
+  IndyCore;
 
 contains
   chimera.pubsub.client.idhttp in 'chimera.pubsub.client.idhttp.pas',

@@ -36,7 +36,7 @@ interface
 {$I chimera.inc}
 
 uses System.SysUtils, System.Classes, System.JSON
-  {$IFDEF USEFASTCODE}, FastStringBuilder{$ENDIF};
+  {$IFDEF USEFASTCODE}, chimera.FastStringBuilder{$ENDIF};
 
 type
 {$SCOPEDENUMS ON}
@@ -80,7 +80,7 @@ type
     constructor InitializeCode(const Value : String);
     function AsJSON : string; overload;
     procedure AsJSON(var Result : string); overload;
-    procedure AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder); overload;
+    procedure AsJSON(Result : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder); overload;
     function ToVariant : Variant;
   end;
 
@@ -177,7 +177,7 @@ type
 
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
-    procedure AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure AsJSON(Result : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     function CreateRTLArray : System.JSON.TJSONArray;
 
     function LoadFromStream(idx : integer; Stream : TStream; Encode : boolean) : IJSONObject; overload;
@@ -334,7 +334,7 @@ type
     function AsSHA1(Whitespace : TWhitespace = TWhitespace.Standard) : string;
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
-    procedure AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure AsJSON(Result : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     function CreateRTLObject : System.JSON.TJSONObject;
 
     procedure Reload(const Source : string);
@@ -533,7 +533,7 @@ type
 
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
-    procedure AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure AsJSON(Result : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     function CreateRTLArray: System.JSON.TJSONArray;
 
     procedure Delete(const idx: Integer);
@@ -699,7 +699,7 @@ type
     function AsSHA1(Whitespace : TWhitespace = TWhitespace.Standard) : string;
     function AsJSON(Whitespace : TWhitespace = TWhitespace.Standard) : string; overload;
     procedure AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard); overload;
-    procedure AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
+    procedure AsJSON(Result : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard); overload;
     function CreateRTLObject: System.JSON.TJSONObject;
 
     procedure Remove(const name: string);
@@ -810,11 +810,11 @@ function FormatJSON(const src : string; Indent : Byte = 3) : string;
   end;
 var
   i, iSize,  iLevel : integer;
-  sb : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
+  sb : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder;
   bInString : boolean;
 begin
   iLevel := 0;
-  sb := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create(src);
+  sb := {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder.Create(src);
   try
     i := 0;
     bInString := False;
@@ -876,9 +876,9 @@ end;
 function JSONEncode(const str : string) : string;
 var
   i : integer;
-  sb : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
+  sb : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder;
 begin
-  sb := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create;
+  sb := {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder.Create;
   try
     for i := 0 to str.Length-1 do
     begin
@@ -921,9 +921,9 @@ function JSONDecode(const str : string) : string;
 var
   i : integer;
   ichar : integer;
-  sb : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
+  sb : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder;
 begin
-  sb := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create;
+  sb := {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder.Create;
   try
     i := 0;
     while i < str.length-1 do
@@ -1106,13 +1106,13 @@ begin
     Result := Result+']';
 end;
 
-procedure TJSONArray.AsJSON(Result : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
+procedure TJSONArray.AsJSON(Result : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   i: Integer;
-  sb : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
+  sb : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder;
 begin
   if Whitespace = TWhitespace.pretty then
-    sb := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create
+    sb := {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder.Create
   else
     sb := Result;
   try
@@ -2136,9 +2136,9 @@ end;
 
 function TJSONObject.AsJSON(Whitespace : TWhitespace = TWhitespace.Standard): string;
 var
-  sb : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
+  sb : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder;
 begin
-  sb := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create;
+  sb := {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder.Create;
   try
     AsJSON(sb, Whitespace);
     Result := sb.ToString;
@@ -2221,7 +2221,7 @@ begin
 
 end;
 
-procedure TJSONObject.AsJSON(Result: {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
+procedure TJSONObject.AsJSON(Result: {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   item : TPair<string, PMultiValue>;
   bFirst : boolean;
@@ -2886,10 +2886,10 @@ end;
 
 procedure TJSONObject.SaveToStream(Stream: TStream; Whitespace : TWhitespace = TWhitespace.Standard);
 var
-  sb : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
+  sb : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder;
   bytes : TArray<Byte>;
 begin
-  sb := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create;
+  sb := {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder.Create;
   try
     AsJSON(sb, Whitespace);
     bytes := TEncoding.UTF8.GetBytes(sb.ToString);
@@ -3352,7 +3352,7 @@ begin
     end;
 end;
 
-procedure TMultiValue.AsJSON(Result: {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder);
+procedure TMultiValue.AsJSON(Result: {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder);
 begin
   case Self.ValueType of
     TJSONValueType.code:

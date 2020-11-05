@@ -2,12 +2,12 @@
     <PropertyGroup>
         <ProjectGuid>{74160258-508A-46EE-8744-4195C6A94668}</ProjectGuid>
         <MainSource>chimera.pubsub.runtime.dpk</MainSource>
-        <ProjectVersion>18.7</ProjectVersion>
+        <ProjectVersion>19.1</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
-        <TargetedPlatforms>147</TargetedPlatforms>
+        <TargetedPlatforms>32915</TargetedPlatforms>
         <AppType>Package</AppType>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
@@ -15,6 +15,11 @@
     </PropertyGroup>
     <PropertyGroup Condition="('$(Platform)'=='Android' and '$(Base)'=='true') or '$(Base_Android)'!=''">
         <Base_Android>true</Base_Android>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+    </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Android64' and '$(Base)'=='true') or '$(Base_Android64)'!=''">
+        <Base_Android64>true</Base_Android64>
         <CfgParent>Base</CfgParent>
         <Base>true</Base>
     </PropertyGroup>
@@ -65,6 +70,15 @@
         <EnabledSysJars>android-support-v4.dex.jar;apk-expansion.dex.jar;cloud-messaging.dex.jar;fmx.dex.jar;google-analytics-v2.dex.jar;google-play-billing.dex.jar;google-play-licensing.dex.jar;google-play-services.dex.jar</EnabledSysJars>
         <VerInfo_Keys>package=com.embarcadero.$(MSBuildProjectName);label=$(MSBuildProjectName);versionCode=1;versionName=1.0.0;persistent=False;restoreAnyVersion=False;installLocation=auto;largeHeap=False;theme=TitleBar;hardwareAccelerated=true;apiKey=</VerInfo_Keys>
         <BT_BuildType>Debug</BT_BuildType>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Base_Android64)'!=''">
+        <VerInfo_Keys>package=com.embarcadero.$(MSBuildProjectName);label=$(MSBuildProjectName);versionCode=1;versionName=1.0.0;persistent=False;restoreAnyVersion=False;installLocation=auto;largeHeap=False;theme=TitleBar;hardwareAccelerated=true;apiKey=</VerInfo_Keys>
+        <BT_BuildType>Debug</BT_BuildType>
+        <Base_Android>true</Base_Android>
+        <CfgParent>Base</CfgParent>
+        <Base>true</Base>
+        <DCC_CBuilderOutput>None</DCC_CBuilderOutput>
+        <EnabledSysJars>android-support-v4.dex.jar;apk-expansion.dex.jar;cloud-messaging.dex.jar;fmx.dex.jar;google-analytics-v2.dex.jar;google-play-billing.dex.jar;google-play-licensing.dex.jar;google-play-services.dex.jar</EnabledSysJars>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <VerInfo_Locale>1033</VerInfo_Locale>
@@ -190,9 +204,17 @@
                         <RemoteDir>classes</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>classes</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="AndroidFileProvider">
                     <Platform Name="Android">
+                        <RemoteDir>res\xml</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <RemoteDir>res\xml</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -208,9 +230,23 @@
                         <RemoteDir>library\lib\armeabi</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>library\lib\armeabi</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="AndroidLibnativeArmeabiv7aFile">
+                    <Platform Name="Android64">
+                        <RemoteDir>library\lib\armeabi-v7a</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="AndroidLibnativeMipsFile">
                     <Platform Name="Android">
+                        <RemoteDir>library\lib\mips</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <RemoteDir>library\lib\mips</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -221,9 +257,23 @@
                         <RemoteDir>library\lib\armeabi-v7a</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>library\lib\arm64-v8a</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="AndroidServiceOutput_Android32">
+                    <Platform Name="Android64">
+                        <RemoteDir>library\lib\armeabi-v7a</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="AndroidSplashImageDef">
                     <Platform Name="Android">
+                        <RemoteDir>res\drawable</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <RemoteDir>res\drawable</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -233,9 +283,17 @@
                         <RemoteDir>res\values</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>res\values</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="AndroidSplashStylesV21">
                     <Platform Name="Android">
+                        <RemoteDir>res\values-v21</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <RemoteDir>res\values-v21</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -245,9 +303,17 @@
                         <RemoteDir>res\values</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>res\values</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="Android_DefaultAppIcon">
                     <Platform Name="Android">
+                        <RemoteDir>res\drawable</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <RemoteDir>res\drawable</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -257,9 +323,17 @@
                         <RemoteDir>res\drawable-xxhdpi</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>res\drawable-xxhdpi</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="Android_LauncherIcon36">
                     <Platform Name="Android">
+                        <RemoteDir>res\drawable-ldpi</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <RemoteDir>res\drawable-ldpi</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -269,9 +343,17 @@
                         <RemoteDir>res\drawable-mdpi</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>res\drawable-mdpi</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="Android_LauncherIcon72">
                     <Platform Name="Android">
+                        <RemoteDir>res\drawable-hdpi</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <RemoteDir>res\drawable-hdpi</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -281,9 +363,17 @@
                         <RemoteDir>res\drawable-xhdpi</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>res\drawable-xhdpi</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="Android_NotificationIcon24">
                     <Platform Name="Android">
+                        <RemoteDir>res\drawable-mdpi</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <RemoteDir>res\drawable-mdpi</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -293,9 +383,17 @@
                         <RemoteDir>res\drawable-hdpi</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>res\drawable-hdpi</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="Android_NotificationIcon48">
                     <Platform Name="Android">
+                        <RemoteDir>res\drawable-xhdpi</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <RemoteDir>res\drawable-xhdpi</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -305,9 +403,17 @@
                         <RemoteDir>res\drawable-xxhdpi</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>res\drawable-xxhdpi</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="Android_NotificationIcon96">
                     <Platform Name="Android">
+                        <RemoteDir>res\drawable-xxxhdpi</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <RemoteDir>res\drawable-xxxhdpi</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -317,9 +423,17 @@
                         <RemoteDir>res\drawable-small</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>res\drawable-small</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="Android_SplashImage470">
                     <Platform Name="Android">
+                        <RemoteDir>res\drawable-normal</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <RemoteDir>res\drawable-normal</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -329,15 +443,27 @@
                         <RemoteDir>res\drawable-large</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>res\drawable-large</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="Android_SplashImage960">
                     <Platform Name="Android">
                         <RemoteDir>res\drawable-xlarge</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>res\drawable-xlarge</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                 </DeployClass>
                 <DeployClass Name="Android_Strings">
                     <Platform Name="Android">
+                        <RemoteDir>res\values</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <RemoteDir>res\values</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
@@ -410,6 +536,9 @@
                     <Platform Name="Android">
                         <Operation>0</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <Operation>0</Operation>
+                    </Platform>
                     <Platform Name="iOSDevice32">
                         <Operation>0</Operation>
                     </Platform>
@@ -427,6 +556,32 @@
                     </Platform>
                     <Platform Name="Win32">
                         <Operation>0</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iOS_AppStore1024">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPad_AppIcon152">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPad_AppIcon167">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
                 <DeployClass Name="iPad_Launch1024">
@@ -561,6 +716,16 @@
                         <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
+                <DeployClass Name="iPad_Launch2x">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\LaunchScreenImage.imageset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\LaunchScreenImage.imageset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
                 <DeployClass Name="iPad_Launch768">
                     <Platform Name="iOSDevice32">
                         <Operation>1</Operation>
@@ -580,6 +745,66 @@
                         <Operation>1</Operation>
                     </Platform>
                     <Platform Name="iOSSimulator">
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPad_LaunchDark2x">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\LaunchScreenImage.imageset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\LaunchScreenImage.imageset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPad_Notification40">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPad_Setting58">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPad_SpotLight80">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPhone_AppIcon120">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPhone_AppIcon180">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
@@ -682,6 +907,16 @@
                         <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
+                <DeployClass Name="iPhone_Launch2x">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\LaunchScreenImage.imageset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\LaunchScreenImage.imageset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
                 <DeployClass Name="iPhone_Launch320">
                     <Platform Name="iOSDevice32">
                         <Operation>1</Operation>
@@ -690,6 +925,16 @@
                         <Operation>1</Operation>
                     </Platform>
                     <Platform Name="iOSSimulator">
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPhone_Launch3x">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\LaunchScreenImage.imageset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\LaunchScreenImage.imageset</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
@@ -737,8 +982,91 @@
                         <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
+                <DeployClass Name="iPhone_LaunchDark2x">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\LaunchScreenImage.imageset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\LaunchScreenImage.imageset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPhone_LaunchDark3x">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\LaunchScreenImage.imageset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\LaunchScreenImage.imageset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPhone_Notification40">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPhone_Notification60">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPhone_Setting58">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPhone_Setting87">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPhone_Spotlight120">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="iPhone_Spotlight80">
+                    <Platform Name="iOSDevice64">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="iOSSimulator">
+                        <RemoteDir>..\$(PROJECTNAME).launchscreen\Assets\AppIcon.appiconset</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
+                </DeployClass>
                 <DeployClass Name="ProjectAndroidManifest">
                     <Platform Name="Android">
+                        <Operation>1</Operation>
+                    </Platform>
+                    <Platform Name="Android64">
                         <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
@@ -755,6 +1083,7 @@
                 <DeployClass Name="ProjectiOSDeviceResourceRules"/>
                 <DeployClass Name="ProjectiOSEntitlements"/>
                 <DeployClass Name="ProjectiOSInfoPList"/>
+                <DeployClass Name="ProjectiOSLaunchScreen"/>
                 <DeployClass Name="ProjectiOSResource">
                     <Platform Name="iOSDevice32">
                         <Operation>1</Operation>
@@ -784,6 +1113,10 @@
                         <RemoteDir>library\lib\armeabi-v7a</RemoteDir>
                         <Operation>1</Operation>
                     </Platform>
+                    <Platform Name="Android64">
+                        <RemoteDir>library\lib\arm64-v8a</RemoteDir>
+                        <Operation>1</Operation>
+                    </Platform>
                     <Platform Name="iOSDevice32">
                         <Operation>1</Operation>
                     </Platform>
@@ -804,6 +1137,12 @@
                     </Platform>
                     <Platform Name="Win32">
                         <Operation>0</Operation>
+                    </Platform>
+                </DeployClass>
+                <DeployClass Name="ProjectOutput_Android32">
+                    <Platform Name="Android64">
+                        <RemoteDir>library\lib\armeabi-v7a</RemoteDir>
+                        <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
                 <DeployClass Name="ProjectUWPManifest">
@@ -843,9 +1182,11 @@
                 <ProjectRoot Platform="Android" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="OSX64" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="iOSSimulator" Name="$(PROJECTNAME).app"/>
+                <ProjectRoot Platform="Android64" Name="$(PROJECTNAME)"/>
             </Deployment>
             <Platforms>
                 <Platform value="Android">True</Platform>
+                <Platform value="Android64">True</Platform>
                 <Platform value="Linux64">True</Platform>
                 <Platform value="Win32">True</Platform>
                 <Platform value="Win64">True</Platform>

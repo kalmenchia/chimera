@@ -37,7 +37,7 @@ interface
 
 uses System.SysUtils, System.Classes, System.Generics.Collections,
   System.Types, System.Rtti, chimera.json
-  {$IFDEF USEFASTCODE}, FastStringBuilder{$ENDIF};
+  {$IFDEF USEFASTCODE}, chimera.FastStringBuilder{$ENDIF};
 
 type
 {$SCOPEDENUMS ON}
@@ -58,8 +58,8 @@ type
     FTokenValue : TMultiValue;
     FOperatorStack : TStack<TParseToken>;
     FValueStack : TStack<TMultiValue>;
-    FTmpValue : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
-    FTmpIdent : {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder;
+    FTmpValue : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder;
+    FTmpIdent : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder;
     function GetToken : boolean;
     function ParseArray: IJSONArray; overload;
     function ParseObject: IJSONObject;
@@ -89,8 +89,8 @@ begin
   FOperatorStack := TStack<TParseToken>.Create;
   FValueStack := TStack<TMultiValue>.Create;
   FFmt := TFormatSettings.Create('en-us');
-  FTmpValue := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create;
-  FTmpIdent := {$IFDEF USEFASTCODE}FastStringBuilder.{$ENDIF}TStringBuilder.Create;
+  FTmpValue := {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder.Create;
+  FTmpIdent := {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder.Create;
 end;
 
 destructor TParser.Destroy;
