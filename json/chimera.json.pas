@@ -140,6 +140,7 @@ type
     property Raw[const idx : integer] : PMultiValue read GetRaw write SetRaw;
 
     procedure Add(const value : string); overload;
+    procedure Add(const value : TGUID); overload;
     procedure Add(const value : double); overload;
     procedure Add(const value : int64); overload;
     procedure Add(const value : boolean); overload;
@@ -356,7 +357,7 @@ type
     //function ParentArray : IJSONArray;
     //function ParentObject : IJSONObject;
 
-    property GUIDs[const name : string] : TGuid read GetGuid write SetGuid;
+    property GUIDs  [const name : string] : TGuid read GetGuid write SetGuid;
     property Bytes[const name : string] : TArray<Byte> read GetBytes write SetBytes;
     property Strings[const name : string] : string read GetString write SetString;
     property Numbers[const name : string] : Double read GetNumber write SetNumber;
@@ -520,6 +521,7 @@ type
     procedure Each(proc : TProcConst<PMultiValue>); overload;
 
     procedure Add(const value : string); overload;
+    procedure Add(const value : TGUID); overload;
     procedure Add(const value : double); overload;
     procedure Add(const value : boolean); overload;
     procedure Add(const value : Int64); overload;
@@ -2072,6 +2074,11 @@ end;
 procedure TJSONArray.Add(const value: TArray<Byte>);
 begin
   Add(TEncoding.UTF8.GetString(TNetEncoding.Base64.Encode(Value)));
+end;
+
+procedure TJSONArray.Add(const value: TGUID);
+begin
+  Add(value.ToString);
 end;
 
 procedure TJSONArray.Each(proc: TProcConst<PMultiValue>);
