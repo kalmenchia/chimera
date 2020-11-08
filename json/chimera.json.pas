@@ -185,6 +185,17 @@ type
     procedure SaveToStream(Stream: TStream; Decode : boolean); overload;
     procedure SaveToStream(idx : integer; Stream: TStream; Decode : boolean); overload;
 
+    function AsArrayOfStrings : TArray<string>; overload;
+    function AsArrayOfGUIDs : TArray<TGuid>; overload;
+    function AsArrayOfDateTimes : TArray<TDateTime>; overload;
+    function AsArrayOfNumbers : TArray<Double>; overload;
+    function AsArrayOfIntegers : TArray<Int64>; overload;
+    function AsArrayOfBooleans : TArray<Boolean>; overload;
+    function AsArrayOfObjects : TArray<IJSONObject>; overload;
+    function AsArrayOfArrays : TArray<IJSONArray>; overload;
+
+    procedure Each(proc : TProcConst<TGuid>); overload;
+    procedure Each(proc : TProcConst<TDateTime>); overload;
     procedure Each(proc : TProcConst<string>); overload;
     procedure Each(proc : TProcConst<double>); overload;
     procedure Each(proc : TProcConst<int64>); overload;
@@ -510,6 +521,17 @@ type
     procedure SaveToStream(Stream: TStream; Decode : boolean); overload;
     procedure SaveToStream(idx : integer; Stream: TStream; Decode : boolean); overload;
 
+    function AsArrayOfStrings : TArray<string>; overload;
+    function AsArrayOfGUIDs : TArray<TGuid>; overload;
+    function AsArrayOfDateTimes : TArray<TDateTime>; overload;
+    function AsArrayOfNumbers : TArray<Double>; overload;
+    function AsArrayOfIntegers : TArray<Int64>; overload;
+    function AsArrayOfBooleans : TArray<Boolean>; overload;
+    function AsArrayOfObjects : TArray<IJSONObject>; overload;
+    function AsArrayOfArrays : TArray<IJSONArray>; overload;
+
+    procedure Each(proc : TProcConst<TGuid>); overload;
+    procedure Each(proc : TProcConst<TDateTime>); overload;
     procedure Each(proc : TProcConst<string>); overload;
     procedure Each(proc : TProcConst<double>); overload;
     procedure Each(proc : TProcConst<int64>); overload;
@@ -1104,6 +1126,79 @@ begin
     Result := FormatJSON(Result+']')
   else
     Result := Result+']';
+end;
+
+function TJSONArray.AsArrayOfArrays: TArray<IJSONArray>;
+var
+  i : integer;
+begin
+  SetLength(Result, FValues.Count);
+  for i := 0 to FValues.Count-1 do
+    Result[i] := FValues[i]^.ArrayValue;
+end;
+
+function TJSONArray.AsArrayOfBooleans: TArray<Boolean>;
+var
+  i : integer;
+begin
+  SetLength(Result, FValues.Count);
+  for i := 0 to FValues.Count-1 do
+    Result[i] := FValues[i]^.IntegerValue = 1;
+end;
+
+function TJSONArray.AsArrayOfDateTimes: TArray<TDateTime>;
+var
+  i : integer;
+begin
+  SetLength(Result, FValues.Count);
+  for i := 0 to FValues.Count-1 do
+    if not TryISO8601ToDate(FValues[i]^.StringValue, Result[i]) then
+      raise Exception.Create('Item is not a date');
+end;
+
+function TJSONArray.AsArrayOfGUIDs: TArray<TGuid>;
+var
+  i : integer;
+begin
+  SetLength(Result, FValues.Count);
+  for i := 0 to FValues.Count-1 do
+    Result[i] := StringToGuid(FValues[i]^.StringValue);
+end;
+
+function TJSONArray.AsArrayOfIntegers: TArray<Int64>;
+var
+  i : integer;
+begin
+  SetLength(Result, FValues.Count);
+  for i := 0 to FValues.Count-1 do
+    Result[i] := FValues[i]^.IntegerValue;
+end;
+
+function TJSONArray.AsArrayOfNumbers: TArray<Double>;
+var
+  i : integer;
+begin
+  SetLength(Result, FValues.Count);
+  for i := 0 to FValues.Count-1 do
+    Result[i] := FValues[i]^.NumberValue;
+end;
+
+function TJSONArray.AsArrayOfObjects: TArray<IJSONObject>;
+var
+  i : integer;
+begin
+  SetLength(Result, FValues.Count);
+  for i := 0 to FValues.Count-1 do
+    Result[i] := FValues[i]^.ObjectValue;
+end;
+
+function TJSONArray.AsArrayOfStrings: TArray<string>;
+var
+  i : integer;
+begin
+  SetLength(Result, FValues.Count);
+  for i := 0 to FValues.Count-1 do
+    Result[i] := FValues[i]^.StringValue;
 end;
 
 procedure TJSONArray.AsJSON(Result : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
@@ -2082,6 +2177,22 @@ begin
     proc(FValues[i]);
 end;
 
+procedure TJSONArray.Each(proc: TProcConst<TDateTime>);
+var
+  i: Integer;
+begin
+  for i := 0 to FValues.Count-1 do
+    proc(ISO8601ToDate(strings[i]));
+end;
+
+procedure TJSONArray.Each(proc: TProcConst<TGuid>);
+var
+  i: Integer;
+begin
+  for i := 0 to FValues.Count-1 do
+    proc(StringToGuid(strings[i]));
+end;
+
 { TJSONObject }
 
 procedure TJSONObject.Add(const name: string; const value: double);
@@ -2666,7 +2777,6 @@ begin
     result := FValues[name]
   else
     raise EChimeraJSONException.Create('Object is missing the "'+name+'" property.');
-
 end;
 
 function TJSONObject.IsSimpleValue: boolean;
