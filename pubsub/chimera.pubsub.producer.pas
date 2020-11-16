@@ -52,7 +52,7 @@ type
     FOnCanPublish: TPubSubAuthEvent;
     FOnParseMessage: TParseDataEvent;
     FOnParseChannel: TParseChannelEvent;
-    FTimeout: integer;
+    FTimeout: LongWord;
   protected
     function ParseChannel : string; virtual;
     function ParseMessage : IJSONObject; virtual;
@@ -64,13 +64,14 @@ type
     function Content: string; override;
     class function PubSub : TPubSub<IJSONObject>;
   published
-    property Timeout : integer read FTimeout write FTimeout default -1;
+    property Timeout : LongWord read FTimeout write FTimeout default High(LongWord);
     property OnSession : TIDEvent read FOnSession write FOnSession;
     property OnCanSubscribe : TPubSubAuthEvent read FOnCanSubscribe write FOnCanSubscribe;
     property OnCanPublish : TPubSubAuthEvent read FOnCanPublish write FOnCanPublish;
     property OnParseChannel : TParseChannelEvent read FOnParseChannel write FOnParseChannel;
     property OnParseMessage : TParseDataEvent read FOnParseMessage write FOnParseMessage;
     property OnGetID : TIDEvent read FOnGetID write FOnGetID;
+
   end;
 
 implementation
@@ -98,52 +99,60 @@ var
   jsa : IJSONArray;
   i: Integer;
 begin
-  case Dispatcher.Request.MethodType of
-    TMethodType.mtPost,
-    TMethodType.mtPut:
-      if CanPublish then
-        PubSub.Publish(ParseChannel, ParseMessage, DoGetID)
-      else
-        raise EPubSubSecurityException.Create(NOT_ALLOWED);
-    TMethodType.mtGet:
-    begin
-      if CanSubscribe then
+  try
+    case Dispatcher.Request.MethodType of
+      TMethodType.mtPost,
+      TMethodType.mtPut:
+        if CanPublish then
+          PubSub.Publish(ParseChannel, ParseMessage, DoGetID)
+        else
+          raise EPubSubSecurityException.Create(NOT_ALLOWED);
+      TMethodType.mtGet:
       begin
-        sSession := '';
-        jsa := JSONArray;
-        if Assigned(FOnSession) then
+        if CanSubscribe then
         begin
-          // If a session is provided, then use queueing mechanism
-          FOnSession(Self, Dispatcher.Request, Dispatcher.Response, sSession);
-          ary := PubSub.ListenAndWait(ParseChannel, sSession, FTimeout, DoGetID);
-          for i := 0 to length(ary)-1 do
+          sSession := '';
+          jsa := JSONArray;
+          if Assigned(FOnSession) then
           begin
-            jsa.Add(ary[i]);
+            // If a session is provided, then use queueing mechanism
+            FOnSession(Self, Dispatcher.Request, Dispatcher.Response, sSession);
+            ary := PubSub.ListenAndWait(ParseChannel, sSession, FTimeout, DoGetID);
+            for i := 0 to length(ary)-1 do
+            begin
+              jsa.Add(ary[i]);
+            end;
+          end else
+          begin
+            // If no session provided, just wait for next message
+            jsa.Add(PubSub.ListenAndWait(ParseChannel, FTimeout, DoGetID));
           end;
-        end else
-        begin
-          // If no session provided, just wait for next message
-          jsa.Add(PubSub.ListenAndWait(ParseChannel, FTimeout, DoGetID));
-        end;
-        Result := jsa.AsJSON;
-        Dispatcher.Response.ContentType := 'application/json';
-        jsa.Each(Procedure(const jsn: IJSONObject)
-          Begin
-            PubSub.ClearMsg(ParseChannel,sSession,jsn);
-          End);
+          Result := jsa.AsJSON;
+          Dispatcher.Response.ContentType := 'application/json';
+          jsa.Each(Procedure(const jsn: IJSONObject)
+            Begin
+              PubSub.ClearMsg(ParseChannel,sSession,jsn);
+            End);
 
-      end else
-        raise EPubSubSecurityException.Create(NOT_ALLOWED);
+        end else
+          raise EPubSubSecurityException.Create(NOT_ALLOWED);
+      end;
+    end;
+  except
+    on e: exception do
+    begin
+      Dispatcher.Response.StatusCode := 501;
+      Dispatcher.Response.ReasonString := e.Message;
+      Result := e.Message;
     end;
   end;
-
 end;
 
 constructor TPubSubProducer.Create(AOwner: TComponent);
 begin
   inherited;
   SetAppDispatcher(AOwner);
-  FTimeout := -1;
+  FTimeout := High(LongWord);
 end;
 
 function TPubSubProducer.DoGetID: string;

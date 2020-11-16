@@ -49,7 +49,6 @@ type
       private
         FEvent : TEvent;
         function GetEvent : TEvent;
-        function GetCount : integer;
       protected
       public
         constructor Create;
@@ -73,7 +72,7 @@ type
       function BeginAndGetContext(const Context : string; const ID : string = '') : TQueue<T>; overload;
       function BeginAndGetContext(const Context : string; const Prefill : TArray<T>; const ID : string = '') : TQueue<T>; overload;
       function EndContext(const Context : string) : TArray<T>;
-      function WaitOnContext(const Context : string; Timeout : integer = -1; const ID : string = '') : TArray<T>;
+      function WaitOnContext(const Context : string; Timeout : LongWord = High(LongWord); const ID : string = '') : TArray<T>;
       //procedure LoadContext(const Context : String; const Data : TArray<T>; const ID : string = ''); overload;
       //procedure LoadContext(const Context : String; const Data : T; const ID : string = ''); overload;
 
@@ -98,8 +97,8 @@ type
     destructor Destroy; override;
     procedure Subscribe(const Channel : string; Handler : TMessageHandler<T>; const ID : string = ''); virtual;
     procedure Unsubscribe(const Channel : string; Handler : TMessageHandler<T>; const ID : string = ''); virtual;
-    function ListenAndWait(const Channel : string; Timeout : integer = -1; const ID : string = '') : T; overload;  virtual;
-    function ListenAndWait(const Channel : string; const Context : string; Timeout : integer = -1; const ID : string = '') : TArray<T>; overload;  virtual;
+    function ListenAndWait(const Channel : string; Timeout : LongWord = High(LongWord); const ID : string = '') : T; overload;  virtual;
+    function ListenAndWait(const Channel : string; const Context : string; Timeout : LongWord = High(LongWord); const ID : string = '') : TArray<T>; overload;  virtual;
     procedure BeginContext(const Channel : string; const Context : string); virtual;
     function EndContext(const Channel : string; const Context : string) : TArray<T>; virtual;
     procedure Publish(const Channel : string; const Msg : T; const ID : string = ''); virtual;
@@ -186,7 +185,7 @@ begin
   Result := Lookup(Channel).EndContext(Context);
 end;
 
-function TPubSub<T>.ListenAndWait(const Channel: string; Timeout: integer = -1; const ID : string = ''): T;
+function TPubSub<T>.ListenAndWait(const Channel: string; Timeout: LongWord = High(LongWord); const ID : string = ''): T;
 var
   event : TEvent;
   msgResult : T;
@@ -210,7 +209,7 @@ begin
   end;
 end;
 
-function TPubSub<T>.ListenAndWait(const Channel, Context: string; Timeout: integer = -1; const ID : string = ''): TArray<T>;
+function TPubSub<T>.ListenAndWait(const Channel, Context: string; Timeout: LongWord = High(LongWord); const ID : string = ''): TArray<T>;
 begin
   Result := Lookup(Channel).WaitOnContext(Context, Timeout, ID);
 end;
@@ -408,13 +407,14 @@ begin
   end;
 end;
 
-function TPubSub<T>.TChannel<T>.WaitOnContext(const Context: string; Timeout: integer = -1; const ID : string = ''): TArray<T>;
+function TPubSub<T>.TChannel<T>.WaitOnContext(const Context: string; Timeout: LongWord = High(LongWord); const ID : string = ''): TArray<T>;
 var
-  q : TDataContext<T>;
+  q : TQueue<T>;
+  dc : TDataContext<T>;
   cnt : Integer;
   i: Integer;
 begin
-  q := TDataContext<T>(BeginAndGetContext(Context));
+  q := BeginAndGetContext(Context);
   TMonitor.Enter(q);
   try
     cnt := q.Count;
@@ -423,8 +423,12 @@ begin
   end;
   if cnt = 0 then
   begin
-    q.Event.ResetEvent;
-    q.Event.WaitFor(Timeout);
+    if q is TDataContext<T> then
+    begin
+      dc := TDataContext<T>(q);
+      dc.Event.ResetEvent;
+      dc.Event.WaitFor(Timeout);
+    end;
   end;
   TMonitor.Enter(q);
   try
@@ -455,15 +459,9 @@ begin
   inherited;
 end;
 
-function TPubSub<T>.TChannel<T>.TDataContext<T>.GetCount: integer;
-begin
-  Result := inherited Count;
-end;
-
 function TPubSub<T>.TChannel<T>.TDataContext<T>.GetEvent: TEvent;
 begin
   result := FEvent;
 end;
-
 
 end.

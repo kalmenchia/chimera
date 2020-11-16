@@ -18,7 +18,7 @@ type
       function BeginAndGetContext(const Context : string; const ID : string = '') : TQueue<T>; overload;
       function BeginAndGetContext(const Context : string; const Prefill : TArray<T>; const ID : string = '') : TQueue<T>; overload;
       function EndContext(const Context : string) : TArray<T>;
-      function WaitOnContext(const Context : string; Timeout : integer; const ID : string = '') : TArray<T>;
+      function WaitOnContext(const Context : string; Timeout : LongWord; const ID : string = '') : TArray<T>;
 
       property Name : string read GetName;
   end;

@@ -419,13 +419,26 @@ type
 
   end;
 
-function JSON(const src : string = '') : IJSONObject;
-function JSONArray(const src : string = '') : IJSONArray;
-function FormatJSON(const src : string; Indent : byte = 3) : string;
-function JSONEncode(const str : string) : string;
-function JSONDecode(const str : string) : string;
-function StringIsJSON(const str : string) : boolean;
-function JSONValueTypeToString(t : TJSONValueTYpe) : string;
+  TJSON = class
+    class function AsObject(const src : string = '') : IJSONObject; overload;
+
+    class function AsArray(const src : string = '') : IJSONArray; overload;
+
+    class function Format(const src : string; Indent : byte = 3) : string;
+    class function Encode(const str : string) : string;
+    class function Decode(const str : string) : string;
+    class function IsJSON(const str : string) : boolean;
+    class function ValueToString(t : TJSONValueTYpe) : string;
+  end;
+
+function JSON(const src : string = '') : IJSONObject; deprecated 'Use TJSON.AsObject instead';
+function JSONArray(const src : string = '') : IJSONArray; deprecated 'Use TJSON.AsArray instead';
+
+function FormatJSON(const src : string; Indent : byte = 3) : string; deprecated 'Use TJSON.Format instead';
+function JSONEncode(const str : string) : string; deprecated 'Use TJSON.Encode instead';
+function JSONDecode(const str : string) : string; deprecated 'Use TJSON.Decode instead';
+function StringIsJSON(const str : string) : boolean; deprecated 'Use TJSON.IsJSON instead';
+function JSONValueTypeToString(t : TJSONValueTYpe) : string; deprecated 'Use TJSON.ValueToString instead';
 
 implementation
 
@@ -434,6 +447,11 @@ uses System.Variants, System.Generics.Collections, chimera.json.parser,
   System.Hash;
 
 function JSONValueTypeToString(t : TJSONValueTYpe) : string;
+begin
+  Result := TJSON.ValueToString(t);
+end;
+
+class function TJSON.ValueToString(t : TJSONValueTYpe) : string;
 begin
   case t of
     TJSONValueType.string:  Result := 'String';
@@ -819,10 +837,20 @@ end;
 
 function StringIsJSON(const str : string) : boolean;
 begin
+  Result := TJSON.IsJSON(str);
+end;
+
+class function TJSON.IsJSON(const str : string) : boolean;
+begin
   result := (str <> '') and (str[1] = '{') and (str[length(str)] = '}')
 end;
 
 function FormatJSON(const src : string; Indent : Byte = 3) : string;
+begin
+  Result := TJSON.Format(src, Indent);
+end;
+
+class function TJSON.Format(const src : string; Indent : Byte = 3) : string;
   function Spaces(var Size : integer; iLevel : integer; indent : byte) : string;
   var
     i: Integer;
@@ -898,6 +926,11 @@ begin
 end;
 
 function JSONEncode(const str : string) : string;
+begin
+  Result := TJSON.Encode(str);
+end;
+
+class function TJSON.Encode(const str : string) : string;
 var
   i : integer;
   sb : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder;
@@ -942,6 +975,11 @@ begin
 end;
 
 function JSONDecode(const str : string) : string;
+begin
+  Result := TJSON.Decode(str);
+end;
+
+class function TJSON.Decode(const str : string) : string;
 var
   i : integer;
   ichar : integer;
@@ -1008,6 +1046,16 @@ end;
 
 function JSON(const src : string) : IJSONObject;
 begin
+  Result := TJSON.AsObject(src);
+end;
+
+{class function TJSON.AsArray<I>(const src: string): IJSONArray<I>;
+begin
+  Result := TJSONArray<I>.Create;
+end;}
+
+class function TJSON.AsObject(const src : string) : IJSONObject;
+begin
   if src <> '' then
     Result := TParser.Parse(src)
   else
@@ -1015,6 +1063,11 @@ begin
 end;
 
 function JSONArray(const src : string) : IJSONArray;
+begin
+  Result := TJSON.AsArray(src);
+end;
+
+class function TJSON.AsArray(const src : string) : IJSONArray;
 begin
   if src <> '' then
     Result := TParser.ParseArray(src)
@@ -1751,10 +1804,11 @@ procedure TJSONArray.Merge(const &Array: IJSONArray);
 var
   i : integer;
 begin
-  for i := 0 to &Array.Count-1 do
-  begin
-    FValues.Add(&Array.Values[i]);
-  end;
+  if Assigned(&Array) then
+    for i := 0 to &Array.Count-1 do
+    begin
+      FValues.Add(&Array.Values[i]);
+    end;
 end;
 
 {function TJSONArray.ParentArray: IJSONArray;
@@ -2879,37 +2933,38 @@ end;
 
 procedure TJSONObject.Merge(const &object: IJSONObject; OnDuplicate: TDuplicateHandler = nil);
 begin
-  &Object.Each(
-    procedure(const Prop : string; const val : PMultiValue)
-    var
-      bOk : boolean;
-    begin
-      if Has[Prop] and Assigned(OnDuplicate) then
-        bOK := OnDuplicate(Prop) = TDuplicateResolution.Overwrite
-      else
-        bOK := True;
-      if bOK then
-        case &Object.Types[Prop] of
-          TJSONValueType.&string:
-            Strings[Prop] := &Object.Strings[Prop];
-          TJSONValueType.number:
-            Numbers[Prop] := &Object.Numbers[Prop];
-          TJSONValueType.&array:
-            Arrays[Prop] := &Object.Arrays[Prop];
-          TJSONValueType.&object:
-            Objects[Prop] := &Object.Objects[Prop];
-          TJSONValueType.boolean:
-            Booleans[Prop] := &Object.Booleans[Prop];
-          TJSONValueType.null:
-          begin
-            Remove(Prop);
-            AddNull(Prop);
+  if Assigned(&object) then
+    &Object.Each(
+      procedure(const Prop : string; const val : PMultiValue)
+      var
+        bOk : boolean;
+      begin
+        if Has[Prop] and Assigned(OnDuplicate) then
+          bOK := OnDuplicate(Prop) = TDuplicateResolution.Overwrite
+        else
+          bOK := True;
+        if bOK then
+          case &Object.Types[Prop] of
+            TJSONValueType.&string:
+              Strings[Prop] := &Object.Strings[Prop];
+            TJSONValueType.number:
+              Numbers[Prop] := &Object.Numbers[Prop];
+            TJSONValueType.&array:
+              Arrays[Prop] := &Object.Arrays[Prop];
+            TJSONValueType.&object:
+              Objects[Prop] := &Object.Objects[Prop];
+            TJSONValueType.boolean:
+              Booleans[Prop] := &Object.Booleans[Prop];
+            TJSONValueType.null:
+            begin
+              Remove(Prop);
+              AddNull(Prop);
+            end;
+            TJSONValueType.code:
+              Raw[Prop] := &Object.Raw[Prop];
           end;
-          TJSONValueType.code:
-            Raw[Prop] := &Object.Raw[Prop];
-        end;
-    end
-  );
+      end
+    );
 end;
 
 procedure TJSONObject.Reload(const Source: string);
@@ -3521,4 +3576,13 @@ begin
     Self.ArrayValue := Value.ArrayValue;
 end;
 
+{ TJSONObject<I> }
+
+{procedure TJSONObject<I>.&With(handler : TProc<I>);
+var
+  vi : TVirtualInterface;
+begin
+
+end;
+ }
 end.
