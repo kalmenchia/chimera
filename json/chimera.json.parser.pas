@@ -260,7 +260,7 @@ function TParser.ParseArray : IJSONArray;
 begin
   if FToken <> TParseToken.OpenArray  then
     raise EChimeraParseException.Create('Array Expected');
-  Result := JSONArray;
+  Result := TJSON.NewArray;
   GetToken;
   while FToken <> TParseToken.CloseArray do
   begin
@@ -308,7 +308,7 @@ end;
 
 function TParser.ParseObject : IJSONObject;
 begin
-  Result := JSON;
+  Result := TJSON.New;
   ParseObjectTo(Result);
 end;
 
@@ -416,7 +416,7 @@ end;
 function TParser.Execute(const AText: string): IJSONObject;
   function SimpleJSONValue : IJSONObject;
   begin
-    Result := JSON;
+    Result := TJSON.New;
     case FToken of
       TParser.TParseToken.String:
         Result.AsString := FTokenValue.StringValue;
@@ -443,7 +443,7 @@ function TParser.Execute(const AText: string): IJSONObject;
 begin
   if Trim(AText) = '' then
   begin
-    Result := JSON;
+    Result := TJSON.New;
     exit;
   end;
 
@@ -474,7 +474,7 @@ function TParser.ExecuteForArray(const AText : string) : IJSONArray;
 begin
   if Trim(AText) = '' then
   begin
-    Result := JSONArray;
+    Result := TJSON.NewArray;
     exit;
   end;
 
