@@ -260,7 +260,7 @@ function TParser.ParseArray : IJSONArray;
 begin
   if FToken <> TParseToken.OpenArray  then
     raise EChimeraParseException.Create('Array Expected');
-  Result := TJSON.NewArray;
+  Result := TJSONArray.New;
   GetToken;
   while FToken <> TParseToken.CloseArray do
   begin
@@ -474,7 +474,7 @@ function TParser.ExecuteForArray(const AText : string) : IJSONArray;
 begin
   if Trim(AText) = '' then
   begin
-    Result := TJSON.NewArray;
+    Result := TJSONArray.New;
     exit;
   end;
 

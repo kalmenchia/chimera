@@ -420,10 +420,10 @@ type
   end;
 
   TJSON = class
+  public
     class function New : IJSONObject;
-    class function NewArray : IJSONArray;
-    class function AsObject(const src : string = '') : IJSONObject; overload;
-    class function AsArray(const src : string = '') : IJSONArray; overload;
+    class function From(const src : string = '') : IJSONObject;
+    class function FromFile(const Filename : string) : IJSONObject;
 
     class function Format(const src : string; Indent : byte = 3) : string;
     class function Encode(const str : string) : string;
@@ -432,8 +432,14 @@ type
     class function ValueToString(t : TJSONValueTYpe) : string;
   end;
 
-function JSON(const src : string = '') : IJSONObject; deprecated 'Use TJSON.AsObject or TJSON.New instead';
-function JSONArray(const src : string = '') : IJSONArray; deprecated 'Use TJSON.AsArray or TJSON.NewArray instead';
+  TJSONArray = class
+  public
+    class function New : IJSONArray;
+    class function From(const src : string = '') : IJSONArray;
+  end;
+
+function JSON(const src : string = '') : IJSONObject; deprecated 'Use TJSON.From or TJSON.New instead';
+function JSONArray(const src : string = '') : IJSONArray; deprecated 'Use TJSONArray.From or TJSONArray.New instead';
 
 function FormatJSON(const src : string; Indent : byte = 3) : string; deprecated 'Use TJSON.Format instead';
 function JSONEncode(const str : string) : string; deprecated 'Use TJSON.Encode instead';
@@ -468,7 +474,7 @@ begin
 end;
 
 type
-  TJSONArray = class(TInterfacedObject, IJSONArray)
+  TJSONArrayImpl = class(TInterfacedObject, IJSONArray)
   private
     FUpdating: Boolean;
     FOnChangeHandler: TChangeArrayHandler; // IJSONArray
@@ -848,12 +854,13 @@ end;
 
 class function TJSON.New: IJSONObject;
 begin
-  Result := AsObject();
+  Result := From();
 end;
 
-class function TJSON.NewArray: IJSONArray;
+class function TJSON.FromFile(const Filename: string): IJSONObject;
 begin
-  Result := AsArray();
+  Result := New;
+  Result.LoadFromFile(Filename);
 end;
 
 function FormatJSON(const src : string; Indent : Byte = 3) : string;
@@ -1057,7 +1064,7 @@ end;
 
 function JSON(const src : string) : IJSONObject;
 begin
-  Result := TJSON.AsObject(src);
+  Result := TJSON.From(src);
 end;
 
 {class function TJSON.AsArray<I>(const src: string): IJSONArray<I>;
@@ -1065,7 +1072,7 @@ begin
   Result := TJSONArray<I>.Create;
 end;}
 
-class function TJSON.AsObject(const src : string) : IJSONObject;
+class function TJSON.From(const src : string) : IJSONObject;
 begin
   if src <> '' then
     Result := TParser.Parse(src)
@@ -1075,20 +1082,12 @@ end;
 
 function JSONArray(const src : string) : IJSONArray;
 begin
-  Result := TJSON.AsArray(src);
+  Result := TJSONArray.From(src);
 end;
 
-class function TJSON.AsArray(const src : string) : IJSONArray;
-begin
-  if src <> '' then
-    Result := TParser.ParseArray(src)
-  else
-    Result := TJSONArray.Create;
-end;
+{ TJSONArrayImpl }
 
-{ TJSONArray }
-
-procedure TJSONArray.Add(const value: double);
+procedure TJSONArrayImpl.Add(const value: double);
 var
   pmv : PMultiValue;
 begin
@@ -1097,7 +1096,7 @@ begin
   FValues.Add(pmv);
 end;
 
-procedure TJSONArray.Add(const value: string);
+procedure TJSONArrayImpl.Add(const value: string);
 var
   pmv : PMultiValue;
 begin
@@ -1106,7 +1105,7 @@ begin
   FValues.Add(pmv);
 end;
 
-procedure TJSONArray.Add(const value: Variant);
+procedure TJSONArrayImpl.Add(const value: Variant);
 var
   pmv : PMultiValue;
 begin
@@ -1115,7 +1114,7 @@ begin
   FValues.Add(pmv);
 end;
 
-procedure TJSONArray.Add(const value: boolean);
+procedure TJSONArrayImpl.Add(const value: boolean);
 var
   pmv : PMultiValue;
 begin
@@ -1124,7 +1123,7 @@ begin
   FValues.Add(pmv);
 end;
 
-procedure TJSONArray.Add(const value: IJSONObject);
+procedure TJSONArrayImpl.Add(const value: IJSONObject);
 var
   pmv : PMultiValue;
 begin
@@ -1134,7 +1133,7 @@ begin
   //value.ParentOverride(Self);
 end;
 
-procedure TJSONArray.Add(const value: Int64);
+procedure TJSONArrayImpl.Add(const value: Int64);
 var
   pmv : PMultiValue;
 begin
@@ -1143,7 +1142,7 @@ begin
   FValues.Add(pmv);
 end;
 
-procedure TJSONArray.Add(const value: IJSONArray);
+procedure TJSONArrayImpl.Add(const value: IJSONArray);
 var
   pmv : PMultiValue;
 begin
@@ -1153,7 +1152,7 @@ begin
   //value.ParentOverride(self);
 end;
 
-procedure TJSONArray.AddNull;
+procedure TJSONArrayImpl.AddNull;
 var
   pmv : PMultiValue;
 begin
@@ -1162,7 +1161,7 @@ begin
   FValues.Add(pmv);
 end;
 
-procedure TJSONArray.AddCode(const value: string);
+procedure TJSONArrayImpl.AddCode(const value: string);
 var
   pmv : PMultiValue;
 begin
@@ -1171,13 +1170,13 @@ begin
   FValues.Add(pmv);
 end;
 
-function TJSONArray.AsJSON(Whitespace : TWhitespace = TWhitespace.Standard): string;
+function TJSONArrayImpl.AsJSON(Whitespace : TWhitespace = TWhitespace.Standard): string;
 begin
   Result := '';
   AsJSON(Result, Whitespace);
 end;
 
-procedure TJSONArray.AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard);
+procedure TJSONArrayImpl.AsJSON(var Result : string; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   i: Integer;
 begin
@@ -1194,7 +1193,7 @@ begin
     Result := Result+']';
 end;
 
-function TJSONArray.AsArrayOfArrays: TArray<IJSONArray>;
+function TJSONArrayImpl.AsArrayOfArrays: TArray<IJSONArray>;
 var
   i : integer;
 begin
@@ -1203,7 +1202,7 @@ begin
     Result[i] := FValues[i]^.ArrayValue;
 end;
 
-function TJSONArray.AsArrayOfBooleans: TArray<Boolean>;
+function TJSONArrayImpl.AsArrayOfBooleans: TArray<Boolean>;
 var
   i : integer;
 begin
@@ -1212,7 +1211,7 @@ begin
     Result[i] := FValues[i]^.IntegerValue = 1;
 end;
 
-function TJSONArray.AsArrayOfDateTimes: TArray<TDateTime>;
+function TJSONArrayImpl.AsArrayOfDateTimes: TArray<TDateTime>;
 var
   i : integer;
 begin
@@ -1222,7 +1221,7 @@ begin
       raise Exception.Create('Item is not a date');
 end;
 
-function TJSONArray.AsArrayOfGUIDs: TArray<TGuid>;
+function TJSONArrayImpl.AsArrayOfGUIDs: TArray<TGuid>;
 var
   i : integer;
 begin
@@ -1231,7 +1230,7 @@ begin
     Result[i] := StringToGuid(FValues[i]^.StringValue);
 end;
 
-function TJSONArray.AsArrayOfIntegers: TArray<Int64>;
+function TJSONArrayImpl.AsArrayOfIntegers: TArray<Int64>;
 var
   i : integer;
 begin
@@ -1240,7 +1239,7 @@ begin
     Result[i] := FValues[i]^.IntegerValue;
 end;
 
-function TJSONArray.AsArrayOfNumbers: TArray<Double>;
+function TJSONArrayImpl.AsArrayOfNumbers: TArray<Double>;
 var
   i : integer;
 begin
@@ -1249,7 +1248,7 @@ begin
     Result[i] := FValues[i]^.NumberValue;
 end;
 
-function TJSONArray.AsArrayOfObjects: TArray<IJSONObject>;
+function TJSONArrayImpl.AsArrayOfObjects: TArray<IJSONObject>;
 var
   i : integer;
 begin
@@ -1258,7 +1257,7 @@ begin
     Result[i] := FValues[i]^.ObjectValue;
 end;
 
-function TJSONArray.AsArrayOfStrings: TArray<string>;
+function TJSONArrayImpl.AsArrayOfStrings: TArray<string>;
 var
   i : integer;
 begin
@@ -1267,7 +1266,7 @@ begin
     Result[i] := FValues[i]^.StringValue;
 end;
 
-procedure TJSONArray.AsJSON(Result : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
+procedure TJSONArrayImpl.AsJSON(Result : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder; Whitespace : TWhitespace = TWhitespace.Standard);
 var
   i: Integer;
   sb : {$IFDEF USEFASTCODE}chimera.FastStringBuilder.{$ENDIF}TStringBuilder;
@@ -1296,12 +1295,12 @@ begin
   end;
 end;
 
-procedure TJSONArray.BeginUpdates;
+procedure TJSONArrayImpl.BeginUpdates;
 begin
   FUpdating := True;
 end;
 
-procedure TJSONArray.Clear;
+procedure TJSONArrayImpl.Clear;
 begin
   while Count > 0 do
   begin
@@ -1311,9 +1310,9 @@ begin
   end;
 end;
 
-function TJSONArray.Clone: IJSONArray;
+function TJSONArrayImpl.Clone: IJSONArray;
 begin
-  Result := TJSON.AsArray(Self.AsJSON);
+  Result := TJSONArray.From(Self.AsJSON);
 end;
 
 {constructor TJSONArray.Create(Parent : IJSONObject);
@@ -1330,31 +1329,31 @@ begin
   FParentArray := Parent;
 end;}
 
-constructor TJSONArray.Create;
+constructor TJSONArrayImpl.Create;
 begin
   inherited Create;
   FValues := TList<PMultiValue>.Create;
 end;
 
-function TJSONArray.CreateRTLArray: System.JSON.TJSONArray;
+function TJSONArrayImpl.CreateRTLArray: System.JSON.TJSONArray;
 begin
   Result := System.JSON.TJSONArray(System.JSON.TJSONObject.ParseJSONValue(TEncoding.UTF8.GetBytes(AsJSON),0));
 end;
 
-destructor TJSONArray.Destroy;
+destructor TJSONArrayImpl.Destroy;
 begin
   Clear;
   FValues.Free;
   inherited;
 end;
 
-procedure TJSONArray.DoChangeNotify;
+procedure TJSONArrayImpl.DoChangeNotify;
 begin
   if Assigned(FOnChangeHandler) and (not FUpdating) then
     FOnChangeHandler(Self);
 end;
 
-procedure TJSONArray.Each(proc: TProcConst<int64>);
+procedure TJSONArrayImpl.Each(proc: TProcConst<int64>);
 var
   i: Integer;
 begin
@@ -1362,7 +1361,7 @@ begin
     proc(FValues[i].IntegerValue);
 end;
 
-procedure TJSONArray.Each(proc: TProcConst<double>);
+procedure TJSONArrayImpl.Each(proc: TProcConst<double>);
 var
   i: Integer;
 begin
@@ -1370,7 +1369,7 @@ begin
     proc(FValues[i].NumberValue);
 end;
 
-procedure TJSONArray.Each(proc: TProcConst<string>);
+procedure TJSONArrayImpl.Each(proc: TProcConst<string>);
 var
   i: Integer;
 begin
@@ -1378,7 +1377,7 @@ begin
     proc(strings[i]);
 end;
 
-procedure TJSONArray.Each(proc: TProcConst<boolean>);
+procedure TJSONArrayImpl.Each(proc: TProcConst<boolean>);
 var
   i: Integer;
 begin
@@ -1386,7 +1385,7 @@ begin
     proc(FValues[i].IntegerValue <> 0);
 end;
 
-procedure TJSONArray.Each(proc: TProcConst<Variant>);
+procedure TJSONArrayImpl.Each(proc: TProcConst<Variant>);
 var
   i: Integer;
 begin
@@ -1394,7 +1393,7 @@ begin
     proc(FValues[i].ToVariant);
 end;
 
-procedure TJSONArray.Each(proc: TProcConst<IJSONArray>);
+procedure TJSONArrayImpl.Each(proc: TProcConst<IJSONArray>);
 var
   i: Integer;
 begin
@@ -1402,7 +1401,7 @@ begin
     proc(FValues[i].ArrayValue);
 end;
 
-procedure TJSONArray.Each(proc: TProcConst<IJSONObject>);
+procedure TJSONArrayImpl.Each(proc: TProcConst<IJSONObject>);
 var
   i: Integer;
 begin
@@ -1410,13 +1409,13 @@ begin
     proc(FValues[i].ObjectValue);
 end;
 
-procedure TJSONArray.EndUpdates;
+procedure TJSONArrayImpl.EndUpdates;
 begin
   FUpdating := False;
   DoChangeNotify;
 end;
 
-procedure TJSONArray.EnsureSize(const idx: integer);
+procedure TJSONArrayImpl.EnsureSize(const idx: integer);
 var
   pmv : PMultiValue;
 begin
@@ -1428,7 +1427,7 @@ begin
   end;
 end;
 
-function TJSONArray.Equals(const obj: IJSONArray): boolean;
+function TJSONArrayImpl.Equals(const obj: IJSONArray): boolean;
 var
   i : integer;
   j: Integer;
@@ -1472,27 +1471,27 @@ begin
   end;
 end;
 
-function TJSONArray.GetArray(const idx: integer): IJSONArray;
+function TJSONArrayImpl.GetArray(const idx: integer): IJSONArray;
 begin
   VerifyType(FValues.Items[idx].ValueType, TJSONValueType.&array);
   Result := FValues.Items[idx].ArrayValue;
 end;
 
-function TJSONArray.GetArrayDefaulted(const idx: integer): IJSONArray;
+function TJSONArrayImpl.GetArrayDefaulted(const idx: integer): IJSONArray;
 begin
   if (idx >= 0) and (idx < Count) then
     Result := GetArray(idx)
   else
-    Result := TJSON.NewArray;
+    Result := TJSONArray.From;
 end;
 
-function TJSONArray.GetBoolean(const idx: integer): Boolean;
+function TJSONArrayImpl.GetBoolean(const idx: integer): Boolean;
 begin
   VerifyType(FValues.Items[idx].ValueType, TJSONValueType.boolean);
   Result := FValues.Items[idx].IntegerValue <> 0;
 end;
 
-function TJSONArray.GetBooleanDefaulted(const idx: integer): Boolean;
+function TJSONArrayImpl.GetBooleanDefaulted(const idx: integer): Boolean;
 begin
   if (idx >= 0) and (idx < Count) then
     Result := GetBoolean(idx)
@@ -1500,12 +1499,12 @@ begin
     Result := False;
 end;
 
-function TJSONArray.GetBytes(const idx: integer): TArray<Byte>;
+function TJSONArrayImpl.GetBytes(const idx: integer): TArray<Byte>;
 begin
   Result := TNetEncoding.Base64.Decode(TEncoding.UTF8.GetBytes(Strings[idx]));
 end;
 
-function TJSONArray.GetBytesDefaulted(const idx: integer): TArray<Byte>;
+function TJSONArrayImpl.GetBytesDefaulted(const idx: integer): TArray<Byte>;
 begin
   if (idx >= 0) and (idx < Count) then
     Result := GetBytes(idx)
@@ -1513,12 +1512,12 @@ begin
     SetLength(Result,0);
 end;
 
-function TJSONArray.GetCount: integer;
+function TJSONArrayImpl.GetCount: integer;
 begin
   Result := FValues.Count;
 end;
 
-function TJSONArray.GetDate(const idx: Integer): TDateTime;
+function TJSONArrayImpl.GetDate(const idx: Integer): TDateTime;
 var
   TempDate: TDateTime;
 begin
@@ -1528,7 +1527,7 @@ begin
 //  Result := ISO8601ToDate(GetString(idx));
 end;
 
-function TJSONArray.GetDateDefaulted(const idx: integer): TDateTime;
+function TJSONArrayImpl.GetDateDefaulted(const idx: integer): TDateTime;
 begin
   if (idx >= 0) and (idx < Count) then
     Result := GetDate(idx)
@@ -1536,12 +1535,12 @@ begin
     Result := 0;
 end;
 
-function TJSONArray.GetGuid(const idx: integer): TGuid;
+function TJSONArrayImpl.GetGuid(const idx: integer): TGuid;
 begin
   Result := StringToGuid(Strings[idx]);
 end;
 
-function TJSONArray.GetGUIDDefaulted(const idx: integer): TGuid;
+function TJSONArrayImpl.GetGUIDDefaulted(const idx: integer): TGuid;
 begin
   if (idx >= 0) and (idx < Count) then
     Result := GetGUID(idx)
@@ -1549,13 +1548,13 @@ begin
     Result := TGUID.Empty;
 end;
 
-function TJSONArray.GetNumber(const idx: integer): Double;
+function TJSONArrayImpl.GetNumber(const idx: integer): Double;
 begin
   VerifyType(FValues.Items[idx].ValueType, TJSONValueType.number);
   Result := FValues.Items[idx].NumberValue;
 end;
 
-function TJSONArray.GetNumberDefaulted(const idx: integer): Double;
+function TJSONArrayImpl.GetNumberDefaulted(const idx: integer): Double;
 begin
   if (idx >= 0) and (idx < Count) then
     Result := GetNumber(idx)
@@ -1563,12 +1562,12 @@ begin
     Result := 0;
 end;
 
-function TJSONArray.GetIntDate(const idx: Integer): TDateTime;
+function TJSONArrayImpl.GetIntDate(const idx: Integer): TDateTime;
 begin
   Result := IncSecond(EncodeDate(1970,1,1),GetInteger(idx));
 end;
 
-function TJSONArray.GetIntDateDefaulted(const idx: integer): TDateTime;
+function TJSONArrayImpl.GetIntDateDefaulted(const idx: integer): TDateTime;
 begin
   if (idx >= 0) and (idx < Count) then
     Result := GetIntDate(idx)
@@ -1576,13 +1575,13 @@ begin
     Result := 0;
 end;
 
-function TJSONArray.GetInteger(const idx: integer): Int64;
+function TJSONArrayImpl.GetInteger(const idx: integer): Int64;
 begin
   VerifyType(FValues.Items[idx].ValueType, TJSONValueType.number);
   Result := FValues.Items[idx].IntegerValue;
 end;
 
-function TJSONArray.GetIntegerDefaulted(const idx: integer): Int64;
+function TJSONArrayImpl.GetIntegerDefaulted(const idx: integer): Int64;
 begin
   if (idx >= 0) and (idx < Count) then
     Result := GetInteger(idx)
@@ -1590,13 +1589,13 @@ begin
     Result := 0;
 end;
 
-function TJSONArray.GetItem(const idx: integer): Variant;
+function TJSONArrayImpl.GetItem(const idx: integer): Variant;
 begin
   EnsureSize(idx);
   Result := FValues.Items[idx].ToVariant;
 end;
 
-function TJSONArray.GetLocalDate(const idx: Integer): TDateTime;
+function TJSONArrayImpl.GetLocalDate(const idx: Integer): TDateTime;
 var
   TempDate: TDateTime;
 begin
@@ -1606,7 +1605,7 @@ begin
   //Result := ISO8601ToDate(GetString(idx),false);
 end;
 
-function TJSONArray.GetLocalDateDefaulted(const idx: integer): TDateTime;
+function TJSONArrayImpl.GetLocalDateDefaulted(const idx: integer): TDateTime;
 begin
   if (idx >= 0) and (idx < Count) then
     Result := GetLocalDate(idx)
@@ -1614,13 +1613,13 @@ begin
     Result := 0;
 end;
 
-function TJSONArray.GetObject(const idx: integer): IJSONObject;
+function TJSONArrayImpl.GetObject(const idx: integer): IJSONObject;
 begin
   VerifyType(FValues.Items[idx].ValueType, TJSONValueType.&object);
   Result := FValues.Items[idx].ObjectValue;
 end;
 
-function TJSONArray.GetObjectDefaulted(const idx: integer): IJSONObject;
+function TJSONArrayImpl.GetObjectDefaulted(const idx: integer): IJSONObject;
 begin
   if (idx >= 0) and (idx < Count) then
     Result := GetObject(idx)
@@ -1628,23 +1627,23 @@ begin
     Result := TJSON.New;
 end;
 
-function TJSONArray.GetOnChange: TChangeArrayHandler;
+function TJSONArrayImpl.GetOnChange: TChangeArrayHandler;
 begin
   Result := FOnChangeHandler;
 end;
 
-function TJSONArray.GetRaw(const idx: integer): PMultiValue;
+function TJSONArrayImpl.GetRaw(const idx: integer): PMultiValue;
 begin
   Result := FValues.Items[idx];
 end;
 
-function TJSONArray.GetString(const idx: integer): string;
+function TJSONArrayImpl.GetString(const idx: integer): string;
 begin
   VerifyType(FValues.Items[idx].ValueType, TJSONValueType.string);
   Result := TJSON.Decode(FValues.Items[idx].StringValue);
 end;
 
-function TJSONArray.GetStringDefaulted(const idx: integer): string;
+function TJSONArrayImpl.GetStringDefaulted(const idx: integer): string;
 begin
   if (idx >= 0) and (idx < Count) then
     Result := GetString(idx)
@@ -1652,17 +1651,17 @@ begin
     Result := '';
 end;
 
-function TJSONArray.GetType(const idx: integer): TJSONValueType;
+function TJSONArrayImpl.GetType(const idx: integer): TJSONValueType;
 begin
   Result := FValues.Items[idx].ValueType;
 end;
 
-function TJSONArray.GetValue(const idx: integer): PMultiValue;
+function TJSONArrayImpl.GetValue(const idx: integer): PMultiValue;
 begin
   Result := FValues[idx];
 end;
 
-function TJSONArray.IndexOf(const value: int64): integer;
+function TJSONArrayImpl.IndexOf(const value: int64): integer;
 var
   i: Integer;
 begin
@@ -1677,7 +1676,7 @@ begin
   end;
 end;
 
-function TJSONArray.IndexOf(const value: boolean): integer;
+function TJSONArrayImpl.IndexOf(const value: boolean): integer;
 var
   i: Integer;
 begin
@@ -1694,7 +1693,7 @@ begin
   end;
 end;
 
-function TJSONArray.IndexOf(const value: string): integer;
+function TJSONArrayImpl.IndexOf(const value: string): integer;
 var
   i: Integer;
 begin
@@ -1709,7 +1708,7 @@ begin
   end;
 end;
 
-function TJSONArray.IndexOf(const value: double): integer;
+function TJSONArrayImpl.IndexOf(const value: double): integer;
 var
   i: Integer;
 begin
@@ -1724,7 +1723,7 @@ begin
   end;
 end;
 
-function TJSONArray.IndexOf(const value: IJSONArray): integer;
+function TJSONArrayImpl.IndexOf(const value: IJSONArray): integer;
 var
   i: Integer;
 begin
@@ -1739,7 +1738,7 @@ begin
   end;
 end;
 
-function TJSONArray.IndexOf(const value: IJSONObject): integer;
+function TJSONArrayImpl.IndexOf(const value: IJSONObject): integer;
 var
   i: Integer;
 begin
@@ -1754,7 +1753,7 @@ begin
   end;
 end;
 
-function TJSONArray.LoadFromStream(idx: integer; Stream: TStream;
+function TJSONArrayImpl.LoadFromStream(idx: integer; Stream: TStream;
   Encode: boolean): IJSONObject;
 var
   data : TArray<Byte>;
@@ -1781,7 +1780,7 @@ begin
       begin
         SetLength(data, Stream.Size - Stream.Position);
         Stream.Read(data, Stream.Size - Stream.Position);
-        Raw[idx]^.ObjectValue := TJSON.AsObject(TEncoding.UTF8.GetString(data));
+        Raw[idx]^.ObjectValue := TJSON.From(TEncoding.UTF8.GetString(data));
       end;
       TJSONValueType.boolean:
         begin
@@ -1800,7 +1799,7 @@ begin
   end;
 end;
 
-function TJSONArray.LoadFromStream(Stream: TStream;
+function TJSONArrayImpl.LoadFromStream(Stream: TStream;
   Encode: boolean): IJSONObject;
 var
   i: Integer;
@@ -1811,7 +1810,7 @@ begin
   end;
 end;
 
-procedure TJSONArray.Merge(const &Array: IJSONArray);
+procedure TJSONArrayImpl.Merge(const &Array: IJSONArray);
 var
   i : integer;
 begin
@@ -1844,7 +1843,7 @@ begin
   FParentArray := nil;
 end;}
 
-procedure TJSONArray.Remove(const value: int64);
+procedure TJSONArrayImpl.Remove(const value: int64);
 var
   i : integer;
 begin
@@ -1855,7 +1854,7 @@ begin
   end;
 end;
 
-procedure TJSONArray.Remove(const value: boolean);
+procedure TJSONArrayImpl.Remove(const value: boolean);
 var
   i : integer;
   iBool : Int64;
@@ -1872,7 +1871,7 @@ begin
   end;
 end;
 
-procedure TJSONArray.Remove(const value: string);
+procedure TJSONArrayImpl.Remove(const value: string);
 var
   i : integer;
   sEncoded : string;
@@ -1885,7 +1884,7 @@ begin
   end;
 end;
 
-procedure TJSONArray.Remove(const value: double);
+procedure TJSONArrayImpl.Remove(const value: double);
 var
   i : integer;
 begin
@@ -1896,7 +1895,7 @@ begin
   end;
 end;
 
-procedure TJSONArray.Remove(const value: Variant);
+procedure TJSONArrayImpl.Remove(const value: Variant);
 var
   i, j : integer;
   bRemove : boolean;
@@ -1954,7 +1953,7 @@ begin
 
         varArray:
         begin
-          jsa := TJSONArray.Create;
+          jsa := TJSONArrayImpl.Create;
           for j := VarArrayLowBound(Value,1) to VarArrayHighBound(Value,1) do
             jsa[j] := Value[j];
           bRemove := FValues[i].ArrayValue.AsJSON = jsa.AsJSON;
@@ -1968,7 +1967,7 @@ begin
   end;
 end;
 
-procedure TJSONArray.Remove(const value: PMultiValue);
+procedure TJSONArrayImpl.Remove(const value: PMultiValue);
 var
   i : integer;
   bRemove : boolean;
@@ -1993,7 +1992,7 @@ begin
   end;
 end;
 
-procedure TJSONArray.Remove(const value: IJSONArray);
+procedure TJSONArrayImpl.Remove(const value: IJSONArray);
 var
   i : integer;
 begin
@@ -2004,7 +2003,7 @@ begin
   end;
 end;
 
-procedure TJSONArray.Remove(const value: IJSONObject);
+procedure TJSONArrayImpl.Remove(const value: IJSONObject);
 var
   i : integer;
 begin
@@ -2015,13 +2014,13 @@ begin
   end;
 end;
 
-procedure TJSONArray.Delete(const idx: Integer);
+procedure TJSONArrayImpl.Delete(const idx: Integer);
 begin
   Dispose(FValues[idx]);
   FValues.Delete(idx);
 end;
 
-procedure TJSONArray.SaveToStream(Stream: TStream; Decode: boolean);
+procedure TJSONArrayImpl.SaveToStream(Stream: TStream; Decode: boolean);
 var
   i: Integer;
 begin
@@ -2031,7 +2030,7 @@ begin
   end;
 end;
 
-procedure TJSONArray.SaveToStream(idx: integer; Stream: TStream;
+procedure TJSONArrayImpl.SaveToStream(idx: integer; Stream: TStream;
   Decode: boolean);
 var
   data : TArray<Byte>;
@@ -2072,7 +2071,7 @@ begin
   Stream.Write(data, length(data));
 end;
 
-procedure TJSONArray.SetArray(const idx: integer; const Value: IJSONArray);
+procedure TJSONArrayImpl.SetArray(const idx: integer; const Value: IJSONArray);
 var
   pmv : PMultiValue;
 begin
@@ -2084,7 +2083,7 @@ begin
   DoChangeNotify;
 end;
 
-procedure TJSONArray.SetBoolean(const idx: integer; const Value: Boolean);
+procedure TJSONArrayImpl.SetBoolean(const idx: integer; const Value: Boolean);
 var
   pmv : PMultiValue;
 begin
@@ -2095,12 +2094,12 @@ begin
   DoChangeNotify;
 end;
 
-procedure TJSONArray.SetBytes(const idx: integer; const Value: TArray<Byte>);
+procedure TJSONArrayImpl.SetBytes(const idx: integer; const Value: TArray<Byte>);
 begin
   Strings[idx] := TEncoding.UTF8.GetString(TNetEncoding.Base64.Encode(Value));
 end;
 
-procedure TJSONArray.SetCount(const Value: integer);
+procedure TJSONArrayImpl.SetCount(const Value: integer);
 begin
   EnsureSize(Value);
   while FValues.Count > Value do
@@ -2108,17 +2107,17 @@ begin
   DoChangeNotify;
 end;
 
-procedure TJSONArray.SetDate(const idx: Integer; const Value: TDateTime);
+procedure TJSONArrayImpl.SetDate(const idx: Integer; const Value: TDateTime);
 begin
   SetString(idx, DateToISO8601(Value));
 end;
 
-procedure TJSONArray.SetGuid(const idx: integer; const Value: TGUID);
+procedure TJSONArrayImpl.SetGuid(const idx: integer; const Value: TGUID);
 begin
   Strings[idx] := GuidToString(Value);
 end;
 
-procedure TJSONArray.SetNumber(const idx: integer; const Value: Double);
+procedure TJSONArrayImpl.SetNumber(const idx: integer; const Value: Double);
 var
   pmv : PMultiValue;
 begin
@@ -2129,12 +2128,12 @@ begin
   DoChangeNotify;
 end;
 
-procedure TJSONArray.SetIntDate(const idx: Integer; const Value: TDateTime);
+procedure TJSONArrayImpl.SetIntDate(const idx: Integer; const Value: TDateTime);
 begin
   SetInteger(idx, SecondsBetween(EncodeDate(1970,1,1),Value));
 end;
 
-procedure TJSONArray.SetInteger(const idx: integer; const Value: Int64);
+procedure TJSONArrayImpl.SetInteger(const idx: integer; const Value: Int64);
 var
   pmv : PMultiValue;
 begin
@@ -2145,14 +2144,14 @@ begin
   DoChangeNotify;
 end;
 
-procedure TJSONArray.SetItem(const idx: integer; const Value: Variant);
+procedure TJSONArrayImpl.SetItem(const idx: integer; const Value: Variant);
 begin
   EnsureSize(idx);
   FValues.Items[idx].Initialize(Value);
   DoChangeNotify;
 end;
 
-procedure TJSONArray.SetLocalDate(const idx: Integer; const Value: TDateTime);
+procedure TJSONArrayImpl.SetLocalDate(const idx: Integer; const Value: TDateTime);
 begin
   if IsValidLocalDate(Value) then
     SetString(idx, DateToISO8601(Value,false))
@@ -2160,7 +2159,7 @@ begin
     SetString(idx, DateToISO8601(0,True));
 end;
 
-procedure TJSONArray.SetObject(const idx: integer; const Value: IJSONObject);
+procedure TJSONArrayImpl.SetObject(const idx: integer; const Value: IJSONObject);
 var
   pmv : PMultiValue;
 begin
@@ -2172,12 +2171,12 @@ begin
   DoChangeNotify;
 end;
 
-procedure TJSONArray.SetOnChange(const Value: TChangeArrayHandler);
+procedure TJSONArrayImpl.SetOnChange(const Value: TChangeArrayHandler);
 begin
   FOnChangeHandler := Value;
 end;
 
-procedure TJSONArray.SetRaw(const idx: integer; const Value: PMultiValue);
+procedure TJSONArrayImpl.SetRaw(const idx: integer; const Value: PMultiValue);
 var
   pmv : PMultiValue;
 begin
@@ -2187,7 +2186,7 @@ begin
   FValues.Add(pmv);
 end;
 
-procedure TJSONArray.SetString(const idx: integer; const Value: string);
+procedure TJSONArrayImpl.SetString(const idx: integer; const Value: string);
 var
   pmv : PMultiValue;
 begin
@@ -2198,7 +2197,7 @@ begin
   DoChangeNotify;
 end;
 
-procedure TJSONArray.SetType(const idx: integer; const Value: TJSONValueType);
+procedure TJSONArrayImpl.SetType(const idx: integer; const Value: TJSONValueType);
 begin
   EnsureSize(idx);
   if Value <> FValues.Items[idx].ValueType then
@@ -2209,7 +2208,7 @@ begin
       TJSONValueType.number:
         FValues.Items[idx].Initialize(0);
       TJSONValueType.array:
-        FValues.Items[idx].Initialize(TJSONArray.Create{(Self)});
+        FValues.Items[idx].Initialize(TJSONArrayImpl.Create{(Self)});
       TJSONValueType.object:
         FValues.Items[idx].Initialize(TJSONObject.Create{(Self)});
       TJSONValueType.boolean:
@@ -2221,7 +2220,7 @@ begin
   end;
 end;
 
-procedure TJSONArray.Add(const value: PMultiValue);
+procedure TJSONArrayImpl.Add(const value: PMultiValue);
 var
   pmv : PMultiValue;
 begin
@@ -2231,17 +2230,17 @@ begin
   DoChangeNotify;
 end;
 
-procedure TJSONArray.Add(const value: TArray<Byte>);
+procedure TJSONArrayImpl.Add(const value: TArray<Byte>);
 begin
   Add(TEncoding.UTF8.GetString(TNetEncoding.Base64.Encode(Value)));
 end;
 
-procedure TJSONArray.Add(const value: TGUID);
+procedure TJSONArrayImpl.Add(const value: TGUID);
 begin
   Add(value.ToString);
 end;
 
-procedure TJSONArray.Each(proc: TProcConst<PMultiValue>);
+procedure TJSONArrayImpl.Each(proc: TProcConst<PMultiValue>);
 var
   i: Integer;
 begin
@@ -2249,7 +2248,7 @@ begin
     proc(FValues[i]);
 end;
 
-procedure TJSONArray.Each(proc: TProcConst<TDateTime>);
+procedure TJSONArrayImpl.Each(proc: TProcConst<TDateTime>);
 var
   i: Integer;
 begin
@@ -2257,12 +2256,27 @@ begin
     proc(ISO8601ToDate(strings[i]));
 end;
 
-procedure TJSONArray.Each(proc: TProcConst<TGuid>);
+procedure TJSONArrayImpl.Each(proc: TProcConst<TGuid>);
 var
   i: Integer;
 begin
   for i := 0 to FValues.Count-1 do
     proc(StringToGuid(strings[i]));
+end;
+
+{ TJSONArray }
+
+class function TJSONArray.From(const src: string): IJSONArray;
+begin
+  if src <> '' then
+    Result := TParser.ParseArray(src)
+  else
+    Result := TJSONArrayImpl.Create;
+end;
+
+class function TJSONArray.New: IJSONArray;
+begin
+  Result := From();
 end;
 
 { TJSONObject }
@@ -2502,7 +2516,7 @@ end;
 
 function TJSONObject.Clone: IJSONObject;
 begin
-  Result := TJSON.AsObject(Self.AsJSON);
+  Result := TJSON.From(Self.AsJSON);
 end;
 
 constructor TJSONObject.Create;
@@ -2649,7 +2663,7 @@ begin
   if Has[name] then
     Result := GetArray(name)
   else
-    Result := TJSON.NewArray;
+    Result := TJSONArray.New;
 end;
 
 function TJSONObject.GetBoolean(const name: string): Boolean;
@@ -2908,7 +2922,7 @@ begin
       begin
         SetLength(data, Stream.Size - Stream.Position);
         Stream.Read(data, Stream.Size - Stream.Position);
-        Raw[Name]^.ObjectValue := TJSON.AsObject(TEncoding.UTF8.GetString(data));
+        Raw[Name]^.ObjectValue := TJSON.From(TEncoding.UTF8.GetString(data));
       end;
       TJSONValueType.boolean:
         begin
@@ -3294,7 +3308,7 @@ begin
       TJSONValueType.number:
         SetNumber(Name, 0);
       TJSONValueType.array:
-        SetArray(Name, TJSONArray.Create);
+        SetArray(Name, TJSONArrayImpl.Create);
       TJSONValueType.object:
         SetObject(Name, TJSONObject.Create);
       TJSONValueType.boolean:
@@ -3523,7 +3537,7 @@ begin
 
       varArray:
       begin
-        jsa := TJSONArray.Create;
+        jsa := TJSONArrayImpl.Create;
         for i := VarArrayLowBound(Value,1) to VarArrayHighBound(Value,1) do
           jsa[i] := Value[i];
 
