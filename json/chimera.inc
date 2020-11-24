@@ -3,8 +3,8 @@
   {$DEFINE USEFASTCODE}
 {$ENDIF}
 
-{$IF CompilerVersion >= 31}
-  {$DEFINE HASWEAKREF}
-{$IFEND}
+//{$IF CompilerVersion >= 31}
+//  {$DEFINE HASWEAKREF}
+//{$IFEND}
 
 
