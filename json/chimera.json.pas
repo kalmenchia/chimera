@@ -422,7 +422,8 @@ type
   TJSON = class
   public
     class function New : IJSONObject;
-    class function From(const src : string = '') : IJSONObject;
+    class function From(const src : string = '') : IJSONObject; overload;
+    class function From(const Stream : TStream) : IJSONObject; overload;
     class function FromFile(const Filename : string) : IJSONObject;
 
     class function Format(const src : string; Indent : byte = 3) : string;
@@ -855,6 +856,12 @@ end;
 class function TJSON.New: IJSONObject;
 begin
   Result := From();
+end;
+
+class function TJSON.From(const Stream: TStream): IJSONObject;
+begin
+  Result := New;
+  Result.LoadFromStream(Stream);
 end;
 
 class function TJSON.FromFile(const Filename: string): IJSONObject;
