@@ -203,7 +203,7 @@ begin
     begin
       result := msgResult;
     end else
-      Result := T(nil);
+      Result := Default(T);
   finally
     event.Free;
   end;

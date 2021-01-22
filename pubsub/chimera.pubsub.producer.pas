@@ -95,8 +95,9 @@ end;
 function TPubSubProducer.Content: string;
 var
   sSession : string;
-  ary: TArray<IJSONObject>;
+  ary : TArray<IJSONObject>;
   jsa : IJSONArray;
+  jso : IJSONObject;
   i: Integer;
 begin
   try
@@ -125,7 +126,9 @@ begin
           end else
           begin
             // If no session provided, just wait for next message
-            jsa.Add(PubSub.ListenAndWait(ParseChannel, FTimeout, DoGetID));
+            jso := PubSub.ListenAndWait(ParseChannel, FTimeout, DoGetID);
+            if Assigned(jso) then
+              jsa.Add(jso);
           end;
           Result := jsa.AsJSON;
           Dispatcher.Response.ContentType := 'application/json';
