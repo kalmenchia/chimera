@@ -34,14 +34,22 @@ unit chimera.pubsub.producer;
 interface
 
 uses
-  System.SysUtils, System.Classes, Web.HTTPApp, chimera.json, chimera.pubsub.common,
+  System.SysUtils,
+  System.Classes,
+  Web.HTTPApp,
+  chimera.json,
+  chimera.pubsub.common,
   chimera.pubsub;
 
 type
   TIDEvent = procedure(Sender : TObject; Request : TWebRequest; Response : TWebResponse; var ID : string) of object;
+
   TPubSubAuthEvent = procedure(Sender : TObject; Request : TWebRequest; const channel : string; var Permitted : boolean) of object;
+
   TParseChannelEvent = procedure(Sender : TObject; Request : TWebRequest; var Value : string) of object;
+
   TParseDataEvent = procedure(Sender : TObject; Request : TWebRequest; var Value : IJSONObject) of object;
+
   TPubSubProducer = class(TCustomContentProducer, IProduceContent)
   strict private
     class var FPubSub : TPubSub<IJSONObject>;
@@ -71,7 +79,6 @@ type
     property OnParseChannel : TParseChannelEvent read FOnParseChannel write FOnParseChannel;
     property OnParseMessage : TParseDataEvent read FOnParseMessage write FOnParseMessage;
     property OnGetID : TIDEvent read FOnGetID write FOnGetID;
-
   end;
 
 implementation
@@ -132,13 +139,18 @@ begin
           end;
           Result := jsa.AsJSON;
           Dispatcher.Response.ContentType := 'application/json';
-          jsa.Each(Procedure(const jsn: IJSONObject)
-            Begin
+          jsa.Each(
+            procedure(const jsn: IJSONObject)
+            begin
               PubSub.ClearMsg(ParseChannel,sSession,jsn);
-            End);
-
+            end
+          );
         end else
           raise EPubSubSecurityException.Create(NOT_ALLOWED);
+      end;
+      TMethodType.mtDelete:
+      begin
+        PubSub.Unsubscribe(ParseChannel, nil, DoGetID);
       end;
     end;
   except

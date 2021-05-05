@@ -33,8 +33,12 @@ unit chimera.pubsub;
 
 interface
 
-uses System.SysUtils, System.Classes, System.Generics.Collections,
-  System.SyncObjs, chimera.pubsub.interfaces;
+uses
+  System.SysUtils,
+  System.Classes,
+  System.Generics.Collections,
+  System.SyncObjs,
+  chimera.pubsub.interfaces;
 
 type
   TCreateChannelHandler<T> = reference to function(const Channel : string) : IChannel<T>;
@@ -59,6 +63,7 @@ type
       FName : string;
       FOwner : TPubSub<T>;
       FSubscriptions : TList<TMessageHandler<T>>;
+      FIDSubscriptions : TDictionary<string, TMessageHandler<T>>;
       FContexts : TDictionary<string, TDataContext<T>>;
     public
       constructor Create(Owner : TPubSub<T>; const Name : String);
@@ -111,6 +116,9 @@ type
   end;
 
 implementation
+
+uses
+  ideal.logger;
 
 { TPubSub<T> }
 
@@ -288,12 +296,14 @@ begin
   FName := Name;
   FOwner := Owner;
   FSubscriptions := TList<TMessageHandler<T>>.Create;
+  FIDSubscriptions := TDictionary<string, TMessageHandler<T>>.Create;
   FContexts := TDictionary<string, TDataContext<T>>.Create;
 end;
 
 destructor TPubSub<T>.TChannel<T>.Destroy;
 begin
   FSubscriptions.Free;
+  FIDSubscriptions.Free;
   FContexts.Free;
   inherited;
 end;
@@ -365,7 +375,9 @@ procedure TPubSub<T>.TChannel<T>.Publish(const Msg: T; const ID : string = '');
 var
   h: TMessageHandler<T>;
   p : TPair<string, TDataContext<T>>;
+  ph: TPair<string, TMessageHandler<T>>;
 begin
+  TLogger.Profile('TPubSub<T>.TChannel<T>.Publish From ID='+ID+' to Channel '+FName);
   TMonitor.Enter(Self);
   try
     FOwner.DoStoreMessage(Self,'',Msg);
@@ -373,6 +385,11 @@ begin
     begin
       h(Msg);
     end;
+    for ph in FIDSubscriptions do
+    begin
+      ph.Value(Msg);
+    end;
+
    // if (FContexts.Count > 1) OR ((FContexts.Count = 1) AND (NOT FContexts.ContainsKey(''))) then
    //   FOwner.DoClearMessage(Self,'',Msg);
     for p in FContexts do
@@ -389,9 +406,13 @@ end;
 
 procedure TPubSub<T>.TChannel<T>.Subscribe(Handler: TMessageHandler<T>; const ID : string = '');
 begin
+  TLogger.Profile('TPubSub<T>.TChannel<T>.Subscribe ID='+ID+' to Channel '+FName);
   TMonitor.Enter(Self);
   try
-    FSubscriptions.Add(Handler);
+    if ID <> '' then
+      FIDSubscriptions.AddOrSetValue(ID, Handler)
+    else
+      FSubscriptions.Add(Handler);
   finally
     TMonitor.Exit(Self);
   end;
@@ -399,9 +420,13 @@ end;
 
 procedure TPubSub<T>.TChannel<T>.Unsubscribe(Handler: TMessageHandler<T>; const ID : string = '');
 begin
+  TLogger.Profile('TPubSub<T>.TChannel<T>.Unsubscribe ID='+ID+' from Channel '+FName);
   TMonitor.Enter(Self);
   try
-    FSubscriptions.Remove(Handler);
+    if (ID = '') and FSubscriptions.Contains(Handler) then
+      FSubscriptions.Remove(Handler)
+    else
+      FIDSubscriptions.ExtractPair(ID);
   finally
     TMonitor.Exit(Self);
   end;
