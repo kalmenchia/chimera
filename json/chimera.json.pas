@@ -436,7 +436,8 @@ type
   TJSONArray = class
   public
     class function New : IJSONArray;
-    class function From(const src : string = '') : IJSONArray;
+    class function From(const src : string = '') : IJSONArray; overload;
+    class function From<T>(const ary : TArray<T>) : IJSONArray; overload;
   end;
 
 function JSON(const src : string = '') : IJSONObject; deprecated 'Use TJSON.From or TJSON.New instead';
@@ -450,8 +451,15 @@ function JSONValueTypeToString(t : TJSONValueTYpe) : string; deprecated 'Use TJS
 
 implementation
 
-uses System.Variants, System.Generics.Collections, chimera.json.parser,
-  System.StrUtils, System.DateUtils, System.TimeSpan, System.NetEncoding,
+uses
+  System.Variants,
+  System.Generics.Collections,
+  chimera.json.parser,
+  System.StrUtils,
+  System.DateUtils,
+  System.TimeSpan,
+  System.NetEncoding,
+  System.Rtti,
   System.Hash;
 
 function JSONValueTypeToString(t : TJSONValueTYpe) : string;
@@ -1225,7 +1233,7 @@ begin
   SetLength(Result, FValues.Count);
   for i := 0 to FValues.Count-1 do
     if not TryISO8601ToDate(FValues[i]^.StringValue, Result[i]) then
-      raise Exception.Create('Item is not a date');
+      raise EInvalidJSONType.Create('Item is not a date');
 end;
 
 function TJSONArrayImpl.AsArrayOfGUIDs: TArray<TGuid>;
@@ -2279,6 +2287,40 @@ begin
     Result := TParser.ParseArray(src)
   else
     Result := TJSONArrayImpl.Create;
+end;
+
+class function TJSONArray.From<T>(const ary: TArray<T>): IJSONArray;
+var
+  item : T;
+  ti : Pointer;
+  v : TValue;
+begin
+  Result := TJSONArray.New;
+  ti := TypeInfo(T);
+  for item in ary do
+  begin
+    v := TValue.From<T>(item);
+    if ti = TypeInfo(TGUID) then
+      Result.Add(v.AsType<TGUID>)
+    else if ti = TypeInfo(IJSONArray) then
+      Result.Add(v.AsType<IJSONArray>)
+    else if ti = TypeInfo(IJSONObject) then
+      Result.Add(v.AsType<IJSONObject>)
+    else if ti = TypeInfo(TArray<Byte>) then
+      Result.Add(v.AsType<TArray<Byte>>)
+    else if ti = TypeInfo(String) then
+      Result.Add(v.AsString)
+    else if ti = TypeInfo(Double) then
+      Result.Add(v.AsExtended)
+    else if ti = TypeInfo(Int64) then
+      Result.add(v.AsInt64)
+    else if ti = TypeInfo(Integer) then
+      Result.Add(v.AsInteger)
+    else if ti = TypeInfo(Boolean) then
+      Result.Add(v.AsBoolean)
+    else
+      raise EInvalidJSONType.Create('Cannot determine value type for storage in JSON Array.');
+  end;
 end;
 
 class function TJSONArray.New: IJSONArray;
