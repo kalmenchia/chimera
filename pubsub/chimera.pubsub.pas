@@ -117,8 +117,6 @@ type
 
 implementation
 
-uses
-  ideal.logger;
 
 { TPubSub<T> }
 
@@ -377,7 +375,6 @@ var
   p : TPair<string, TDataContext<T>>;
   ph: TPair<string, TMessageHandler<T>>;
 begin
-  TLogger.Profile('TPubSub<T>.TChannel<T>.Publish From ID='+ID+' to Channel '+FName);
   TMonitor.Enter(Self);
   try
     FOwner.DoStoreMessage(Self,'',Msg);
@@ -406,7 +403,6 @@ end;
 
 procedure TPubSub<T>.TChannel<T>.Subscribe(Handler: TMessageHandler<T>; const ID : string = '');
 begin
-  TLogger.Profile('TPubSub<T>.TChannel<T>.Subscribe ID='+ID+' to Channel '+FName);
   TMonitor.Enter(Self);
   try
     if ID <> '' then
@@ -420,7 +416,6 @@ end;
 
 procedure TPubSub<T>.TChannel<T>.Unsubscribe(Handler: TMessageHandler<T>; const ID : string = '');
 begin
-  TLogger.Profile('TPubSub<T>.TChannel<T>.Unsubscribe ID='+ID+' from Channel '+FName);
   TMonitor.Enter(Self);
   try
     if (ID = '') and FSubscriptions.Contains(Handler) then
