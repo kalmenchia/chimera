@@ -1116,7 +1116,7 @@ var
   pmv : PMultiValue;
 begin
   New(pmv);
-  pmv.Initialize(value);
+  pmv.Initialize(value, true);
   FValues.Add(pmv);
 end;
 
