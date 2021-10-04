@@ -309,7 +309,8 @@ begin
     DeferConnect,
     procedure
     begin
-      OnHandshakeComplete();
+      if Assigned(OnHandshakeComplete) then
+        OnHandshakeComplete();
     end,
     OnLogMessage,
     OnLogResponse,
