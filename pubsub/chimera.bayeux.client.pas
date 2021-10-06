@@ -458,7 +458,7 @@ function TBayeuxClient.DoSendMessage(http: THTTPClient; const Msg: IJSONObject) 
           try
             rescode := http.post(FEndpoint.ToString, ssSource, ssResponse);
             if rescode.StatusCode <> 200 then
-              raise ENetHTTPRequestException.Create(rescode.StatusCode.ToString+': '+rescode.StatusText);
+              raise ENetHTTPRequestException.Create(rescode.StatusCode.ToString+': '+rescode.StatusText+' @ '+FEndpoint.ToString + #13#10+Msg.AsJSON(TWhitespace.Pretty));
           except
             on e: exception do
             begin

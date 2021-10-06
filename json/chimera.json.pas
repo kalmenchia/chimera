@@ -3401,7 +3401,10 @@ constructor TMultiValue.Initialize(const Value: Double; encode : boolean = false
 begin
   Self.ValueType := TJSONValueType.number;
   Self.NumberValue := Value;
+  Self.StringValue := Self.NumberValue.ToString;
   Self.IntegerValue := Round(Value);
+  Self.ObjectValue := nil;
+  Self.ArrayValue := nil;
 end;
 
 constructor TMultiValue.Initialize(const Value: String; encode : boolean = false);
@@ -3411,6 +3414,10 @@ begin
     Self.StringValue := TJSON.Encode(Value)
   else
     Self.StringValue := Value;
+  Self.IntegerValue := StrToIntDef(Self.StringValue, 0);
+  Self.NumberValue := StrToFloatDef(Self.StringValue,0);
+  Self.ObjectValue := nil;
+  Self.ArrayValue := nil;
 end;
 
 function TMultiValue.AsJSON: string;
@@ -3463,6 +3470,10 @@ constructor TMultiValue.Initialize(const Value: IJSONArray; encode : boolean = f
 begin
   Self.ValueType := TJSONValueType.&array;
   Self.ArrayValue := Value;
+  Self.IntegerValue := 0;
+  Self.NumberValue := 0;
+  Self.StringValue := '';
+  Self.ObjectValue := nil;
 end;
 
 constructor TMultiValue.Initialize(const Value: Int64; encode : boolean = false);
@@ -3470,18 +3481,26 @@ begin
   Self.ValueType := TJSONValueType.number;
   Self.NumberValue := Value;
   Self.IntegerValue := Value;
+  Self.StringValue := Self.NumberValue.ToString;
+  Self.ObjectValue := nil;
+  Self.ArrayValue := nil;
 end;
 
 constructor TMultiValue.Initialize(const Value: IJSONObject; encode : boolean = false);
 begin
   Self.ValueType := TJSONValueType.&object;
   Self.ObjectValue := Value;
+  Self.NumberValue := 0;
+  Self.IntegerValue := 0;
+  Self.StringValue := '';
+  Self.ArrayValue := nil;
 end;
 
 function TMultiValue.InitializeNull : TMultiValue;
 begin
   Self.ValueType := TJSONValueType.&null;
   Self.ObjectValue := nil;
+  Self.ArrayValue := nil;
   Self.IntegerValue := 0;
   Self.StringValue := '';
   Self.NumberValue := 0;
@@ -3492,6 +3511,10 @@ constructor TMultiValue.InitializeCode(const Value: String);
 begin
   Self.ValueType := TJSONValueType.code;
   Self.StringValue := Value;
+  Self.ObjectValue := nil;
+  Self.ArrayValue := nil;
+  Self.IntegerValue := 0;
+  Self.NumberValue := 0;
 end;
 
 function TMultiValue.ToVariant: Variant;
@@ -3524,6 +3547,10 @@ begin
     Self.IntegerValue := 1
   else
     Self.IntegerValue := 0;
+  Self.ObjectValue := nil;
+  Self.ArrayValue := nil;
+  Self.StringValue := '';
+  Self.NumberValue := Self.IntegerValue;
 end;
 
 constructor TMultiValue.Initialize(const Value: Variant; encode : boolean = false);
