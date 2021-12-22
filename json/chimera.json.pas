@@ -283,6 +283,7 @@ type
     function GetArray(const name : string): IJSONArray;
     function GetBytes(const name : string): TArray<Byte>;
     function GetGuid(const name : string) : TGuid;
+    function GetTime(const name : string) : TDateTime;
 
     function GetBooleanDefaulted(const name : string): Boolean;
     function GetNumberDefaulted(const name : string): Double;
@@ -295,6 +296,7 @@ type
     function GetArrayDefaulted(const name : string): IJSONArray;
     function GetBytesDefaulted(const name : string): TArray<Byte>;
     function GetGuidDefaulted(const name : string) : TGuid;
+    function GetTimeDefaulted(const name : string) : TDateTime;
 
     function GetItem(const name : string): Variant;
     function GetType(const name : string): TJSONValueType;
@@ -314,6 +316,7 @@ type
     procedure SetType(const name : string; const Value: TJSONValueType);
     procedure SetBytes(const name : string; const Value: TArray<Byte>);
     procedure SetGuid(const name : String; const Value : TGuid);
+    procedure SetTime(const name : string; const Value : TDateTime);
     //procedure ParentOverride(parent : IJSONArray); overload;
     //procedure ParentOverride(parent : IJSONObject); overload;
 
@@ -379,6 +382,7 @@ type
     property Booleans[const name : string] : Boolean read GetBoolean write SetBoolean;
     property Objects[const name : string] : IJSONObject read GetObject write SetObject;
     property Arrays[const name : string] : IJSONArray read GetArray write SetArray;
+    property Times[const name : string] : TDateTime read GetTime write SetTime;
 
     property GUIDsDefaulted[const name : string] : TGuid read GetGuidDefaulted write SetGuid;
     property BytesDefaulted[const name : string] : TArray<Byte> read GetBytesDefaulted write SetBytes;
@@ -391,6 +395,8 @@ type
     property BooleansDefaulted[const name : string] : Boolean read GetBooleanDefaulted write SetBoolean;
     property ObjectsDefaulted[const name : string] : IJSONObject read GetObjectDefaulted write SetObject;
     property ArraysDefaulted[const name : string] : IJSONArray read GetArrayDefaulted write SetArray;
+    property TimesDefaulted[const name : string] : TDateTime read GetTimeDefaulted write SetTime;
+
 
     property Items[const name : string] : Variant read GetItem write SetItem; default;
     property Types[const name : string] : TJSONValueType read GetType write SetType;
@@ -452,6 +458,7 @@ function JSONValueTypeToString(t : TJSONValueTYpe) : string; deprecated 'Use TJS
 implementation
 
 uses
+  System.Character,
   System.Variants,
   System.Generics.Collections,
   chimera.json.parser,
@@ -667,6 +674,7 @@ type
     function GetBytes(const name : string): TArray<Byte>;
     function GetGuid(const name: string): TGuid;
     function GetValue(const name: string) : PMultiValue;
+    function GetTime(const name : string) : TDateTime;
 
     function GetBooleanDefaulted(const name : string): Boolean;
     function GetNumberDefaulted(const name : string): Double;
@@ -679,6 +687,7 @@ type
     function GetArrayDefaulted(const name : string): IJSONArray;
     function GetBytesDefaulted(const name : string): TArray<Byte>;
     function GetGuidDefaulted(const name : string) : TGuid;
+    function GetTimeDefaulted(const name : string) : TDateTime;
 
     procedure SetGuid(const name: string; const Value: TGuid);
     procedure SetBytes(const name : string; const Value: TArray<Byte>);
@@ -693,6 +702,7 @@ type
     procedure SetArray(const name : string; const Value: IJSONArray);
     procedure SetObject(const name : string; const Value: IJSONObject);
     procedure SetType(const name : string; const Value: TJSONValueType);
+    procedure SetTime(const name : string; const Value : TDateTime);
     function GetHas(const name: string): boolean;
     //procedure ParentOverride(parent : IJSONArray); overload;
     //procedure ParentOverride(parent : IJSONObject); overload;
@@ -2896,6 +2906,69 @@ begin
     Result := '';
 end;
 
+function TJSONObject.GetTime(const name: string): TDateTime;
+var
+  ary : TArray<string>;
+  ampm : string;
+  lastdigit : string;
+  hr, min, sec, ms : integer;
+begin
+  ary := GetString(name).Split([':']);
+  if length(ary) > 0 then
+  begin
+    ampm := ary[length(ary)-1].toLower.Trim;
+    lastdigit := '';
+    while (ampm.length > 0) and TCharacter.IsNumber(ampm.Chars[0]) do
+    begin
+      lastdigit := lastdigit + ampm.Chars[0];
+      ampm := ampm.Substring(1);
+    end;
+
+    if Length(ary) = 1 then
+    begin
+      hr := lastdigit.ToInteger;
+      min := 0;
+      sec := 0;
+      ms := 0;
+    end else if Length(ary) = 2 then
+    begin
+      hr := ary[0].ToInteger;
+      min := lastdigit.ToInteger;
+      sec := 0;
+      ms := 0;
+    end else if Length(ary) = 3 then
+    begin
+      hr := ary[0].ToInteger;
+      min := ary[1].ToInteger;
+      sec := lastdigit.ToInteger;
+      ms := 0;
+    end else if Length(ary) = 4 then
+    begin
+      hr := ary[0].ToInteger;
+      min := ary[1].ToInteger;
+      sec := ary[2].ToInteger;
+      ms := lastdigit.ToInteger;
+    end else
+      raise EChimeraJSONException.Create('Property "'+name+'" is not a time value.');
+
+    if ampm.Trim = 'pm' then
+      hr := hr+12;
+
+    if not TryEncodeTime(hr, min, sec, ms, Result) then
+      raise EChimeraJSONException.Create('Property "'+name+'" is not a time value.');
+
+  end else
+    raise EChimeraJSONException.Create('Property "'+name+'" is not a time value.');
+end;
+
+function TJSONObject.GetTimeDefaulted(const name: string): TDateTime;
+begin
+  if Has[name] then
+    Result := GetTime(name)
+  else
+    Result := 0;
+end;
+
 function TJSONObject.GetType(const name: string): TJSONValueType;
 begin
   Result := ValueOf[Name].ValueType;
@@ -3340,6 +3413,22 @@ begin
 
   FValues.AddOrSetValue(Name, pmv);
   DoChangeNotify;
+end;
+
+procedure TJSONObject.SetTime(const name : string; const Value: TDateTime);
+var
+  sTime : string;
+  sec, ms : integer;
+begin
+  sec := SecondOf(Value);
+  ms := MillisecondOf(Value);
+  if (sec = 0) and (ms = 0) then
+    DateTimeToString(sTime, 'hh:nn ampm', Value)
+  else if (ms = 0) then
+    DateTimeToString(sTime, 'hh:nn:ss ampm', Value)
+  else
+    DateTimeToString(sTime, 'hh:nn:ss:zzz ampm', Value);
+  SetString(name, sTime.ToLower);
 end;
 
 procedure TJSONObject.SetType(const name: string; const Value: TJSONValueType);
